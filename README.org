@@ -1,0 +1,19 @@
+This repository houses Guix configuration for GeneNetwork machines and
+containers.
+
+* GeneNetwork development container
+
+The GeneNetwork development container is run on /penguin2/. It runs
+continuous integration and continuous deployment services for
+genenetwork2, genenetwork3 and several other associated projects.
+
+To build and install the container, on /penguin2/, run
+#+BEGIN_SRC shell
+$ ./genenetwork-development-deploy.sh
+#+END_SRC
+
+/penguin2/ is configured with a systemd service to run this
+container. Restart it.
+#+BEGIN_SRC shell
+$ sudo systemctl restart genenetwork-development-container
+#+END_SRC
