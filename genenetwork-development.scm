@@ -475,6 +475,11 @@ command to be executed."
 ;;; dump-genenetwork-database
 ;;; 
 
+;; Path to genenetwork database dump export directory that has lots of
+;; free space
+(define %dump-genenetwork-database-export-directory
+  "/export/genenetwork-database-dump")
+
 ;; Unreleased version of ccwl that is required by
 ;; dump-genenetwork-database for its graphql library.
 (define ccwl
@@ -544,17 +549,41 @@ command to be executed."
             (allow-collisions? #t))
          (list "make" "check")))))
 
+(define (dump-genenetwork-database project)
+  (with-imported-modules '((guix build utils))
+    (with-packages (list git-minimal guile-3.0 guile-dbd-mysql
+                         guile-dbi nss-certs)
+      #~(begin
+          (use-modules (guix build utils))
+
+          (invoke "git" "clone"
+                  "--depth" "1"
+                  #$(forge-project-repository project)
+                  ".")
+          (let ((dump-directory #$(string-append %dump-genenetwork-database-export-directory
+                                                 "/dump")))
+            (when (file-exists? dump-directory)
+              (delete-file-recursively dump-directory))
+            (mkdir-p dump-directory)
+            (invoke "./pre-inst-env" "./dump.scm"
+                    #$(string-append %dump-genenetwork-database-export-directory
+                                     "/conn.scm")
+                    dump-directory))))))
+
 (define dump-genenetwork-database-project
   (forge-project
    (name "dump-genenetwork-database")
    (repository "https://git.genenetwork.org/arunisaac/dump-genenetwork-database")
    (ci-jobs (list (forge-laminar-job
-                   (name "dump-genenetwork-database")
+                   (name "dump-genenetwork-database-tests")
                    (run (derivation-job-gexp
                          this-forge-project
                          this-forge-laminar-job
                          dump-genenetwork-database-tests
-                         #:guix-daemon-uri %guix-daemon-uri)))))
+                         #:guix-daemon-uri %guix-daemon-uri)))
+                  (forge-laminar-job
+                   (name "dump-genenetwork-database")
+                   (run (dump-genenetwork-database this-forge-project)))))
    (ci-jobs-trigger 'webhook)))
 
 
@@ -647,4 +676,15 @@ command to be executed."
                             (development-server-configuration
                              (inherit %default-genenetwork3-configuration)
                              (port %genenetwork3-port)))
+                   (simple-service 'set-dump-genenetwork-database-export-directory-permissions
+                                   activation-service-type
+                                   (with-imported-modules '((guix build utils))
+                                     #~(begin
+                                         (use-modules (guix build utils))
+
+                                         (for-each (lambda (file)
+                                                     (chown file
+                                                            (passwd:uid (getpw "laminar"))
+                                                            (passwd:gid (getpw "laminar"))))
+                                                   (find-files #$%dump-genenetwork-database-export-directory)))))
                    %base-services)))
