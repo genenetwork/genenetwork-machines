@@ -37,6 +37,7 @@
              ((gnu packages haskell-apps) #:select (shellcheck))
              ((gnu packages python-check) #:select (python-mypy))
              ((gnu packages python-web) #:select (gunicorn))
+             ((gnu packages rdf) #:select (raptor2))
              ((gnu packages tls) #:select (openssl))
              ((gnu packages version-control) #:select (git-minimal))
              (gnu services ci)
@@ -565,10 +566,19 @@ command to be executed."
             (when (file-exists? dump-directory)
               (delete-file-recursively dump-directory))
             (mkdir-p dump-directory)
+            ;; Dump data to RDF.
             (invoke "./pre-inst-env" "./dump.scm"
                     #$(string-append %dump-genenetwork-database-export-directory
                                      "/conn.scm")
-                    dump-directory))))))
+                    dump-directory)
+            ;; Validate dumped RDF.
+            (invoke #$(file-append raptor2 "/bin/rapper")
+                    "--input" "turtle"
+                    "--count"
+                    ;; We use --ignore-errors because we don't want to
+                    ;; print out potentially sensitive data.
+                    "--ignore-errors"
+                    (string-append dump-directory "/dump.ttl")))))))
 
 (define dump-genenetwork-database-project
   (forge-project
