@@ -29,10 +29,11 @@
              ((gnu packages certs) #:select (nss-certs))
              ((gnu packages check) #:select (python-pylint))
              ((gnu packages ci) #:select (laminar))
+             ((gnu packages databases) #:select (virtuoso-ose))
              ((gnu packages gnupg) #:select (guile-gcrypt))
              ((gnu packages graphviz) #:select (graphviz))
              ((gnu packages guile) #:select (guile-3.0 guile-zlib))
-             ((gnu packages guile-xyz) #:select (guile-dbd-mysql guile-dbi guile-libyaml))
+             ((gnu packages guile-xyz) #:select (guile-dbd-mysql guile-dbi guile-hashing guile-libyaml))
              ((gnu packages guile-xyz) #:select (guile-sparql) #:prefix guix:)
              ((gnu packages haskell-apps) #:select (shellcheck))
              ((gnu packages python-check) #:select (python-mypy))
@@ -552,8 +553,9 @@ command to be executed."
 
 (define (dump-genenetwork-database project)
   (with-imported-modules '((guix build utils))
-    (with-packages (list git-minimal guile-3.0 guile-dbd-mysql
-                         guile-dbi nss-certs)
+    (with-packages (list ccwl git-minimal guile-3.0 guile-dbd-mysql
+                         guile-dbi guile-hashing guile-libyaml guile-sparql
+                         nss-certs virtuoso-ose)
       #~(begin
           (use-modules (guix build utils))
 
@@ -561,15 +563,16 @@ command to be executed."
                   "--depth" "1"
                   #$(forge-project-repository project)
                   ".")
-          (let ((dump-directory #$(string-append %dump-genenetwork-database-export-directory
+          (let ((connection-settings-file #$(string-append %dump-genenetwork-database-export-directory
+                                                           "/conn.scm"))
+                (dump-directory #$(string-append %dump-genenetwork-database-export-directory
                                                  "/dump")))
             (when (file-exists? dump-directory)
               (delete-file-recursively dump-directory))
             (mkdir-p dump-directory)
             ;; Dump data to RDF.
             (invoke "./pre-inst-env" "./dump.scm"
-                    #$(string-append %dump-genenetwork-database-export-directory
-                                     "/conn.scm")
+                    connection-settings-file
                     dump-directory)
             ;; Validate dumped RDF.
             (invoke #$(file-append raptor2 "/bin/rapper")
@@ -578,7 +581,18 @@ command to be executed."
                     ;; We use --ignore-errors because we don't want to
                     ;; print out potentially sensitive data.
                     "--ignore-errors"
-                    (string-append dump-directory "/dump.ttl")))))))
+                    (string-append dump-directory "/dump.ttl"))
+            ;; Load RDF into virtuoso.
+            (invoke "./pre-inst-env" "./load-rdf.scm"
+                    connection-settings-file
+                    (string-append dump-directory "/dump.ttl"))
+            ;; Visualize schema and archive results.
+            (invoke "./pre-inst-env" "./visualize-schema.scm"
+                    connection-settings-file)
+            (invoke #$(file-append graphviz "/bin/dot")
+                    "-Tsvg" "sql.dot" (string-append "-o" (getenv "ARCHIVE") "/sql.svg"))
+            (invoke #$(file-append graphviz "/bin/dot")
+                    "-Tsvg" "rdf.dot" (string-append "-o" (getenv "ARCHIVE") "/rdf.svg")))))))
 
 (define dump-genenetwork-database-project
   (forge-project
