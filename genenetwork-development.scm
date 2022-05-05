@@ -553,16 +553,18 @@ command to be executed."
 
 (define (dump-genenetwork-database project)
   (with-imported-modules '((guix build utils))
-    (with-packages (list ccwl git-minimal guile-3.0 guile-dbd-mysql
+    (with-packages (list ccwl git-minimal gnu-make guile-3.0 guile-dbd-mysql
                          guile-dbi guile-hashing guile-libyaml guile-sparql
                          nss-certs virtuoso-ose)
       #~(begin
-          (use-modules (guix build utils))
+          (use-modules (guix build utils)
+                       (ice-9 threads))
 
           (invoke "git" "clone"
                   "--depth" "1"
                   #$(forge-project-repository project)
                   ".")
+          (invoke "make" "-j" (number->string (current-processor-count)))
           (let ((connection-settings-file #$(string-append %dump-genenetwork-database-export-directory
                                                            "/conn.scm"))
                 (dump-directory #$(string-append %dump-genenetwork-database-export-directory
