@@ -547,7 +547,7 @@ command to be executed."
          #$(profile
             (content (packages->manifest
                       (list gnu-make guile-3.0 guile-dbi guile-dbd-mysql
-                            ccwl graphviz guile-libyaml guile-sparql run64)))
+                            ccwl guile-libyaml guile-sparql run64)))
             (allow-collisions? #t))
          (list "make" "check")))))
 
