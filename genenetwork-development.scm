@@ -663,11 +663,7 @@ command to be executed."
   (bootloader (bootloader-configuration
                (bootloader grub-bootloader)
                (targets (list "/dev/sdX"))))
-  (file-systems (cons (file-system
-                        (device "root")
-                        (mount-point "/")
-                        (type "ext4"))
-                      %base-file-systems))
+  (file-systems %base-file-systems)
   (users %base-user-accounts)
   (packages %base-packages)
   (sudoers-file
