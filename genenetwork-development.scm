@@ -681,6 +681,7 @@ command to be executed."
                                              gn-gemtext-threads-project))))
                    (service laminar-service-type
                             (laminar-configuration
+                             (title "GeneNetwork CI")
                              (bind-http "localhost:9090")))
                    (service webhook-service-type
                             (webhook-configuration
