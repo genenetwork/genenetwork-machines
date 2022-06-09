@@ -23,12 +23,13 @@
              ((gn packages quality-control) #:select (sbcl-qc))
              (gn services databases)
              ((gnu packages admin) #:select (shepherd))
-             ((gnu packages base) #:select (gnu-make))
+             ((gnu packages base) #:select (gnu-make tar))
              ((gnu packages bash) #:select (bash))
              ((gnu packages bioinformatics) #:select (ccwl) #:prefix guix:)
              ((gnu packages certs) #:select (nss-certs))
              ((gnu packages check) #:select (python-pylint))
              ((gnu packages ci) #:select (laminar))
+             ((gnu packages compression) #:select (gzip))
              ((gnu packages databases) #:select (virtuoso-ose))
              ((gnu packages gnupg) #:select (guile-gcrypt))
              ((gnu packages graphviz) #:select (graphviz))
@@ -656,6 +657,41 @@ command to be executed."
 ;;; operating-system definition
 ;;;
 
+(define (laminar-template-gexp issue-tracker-uri)
+  "Return a G-expression that creates a custom Laminar template with a
+menu link to the issue tracker at ISSUE-TRACKER-URI."
+  (with-imported-modules '((guix build utils))
+    #~(begin
+        (use-modules (guix build utils))
+
+        (set-path-environment-variable "PATH"
+                                       (list "bin")
+                                       (list #$gzip #$tar))
+        (invoke "tar" "--extract" "--strip-components=3"
+                (string-append "--file=" #$(package-source laminar))
+                (string-append "laminar-"
+                               #$(package-version laminar)
+                               "/src/resources/index.html"))
+        (copy-file "index.html" #$output)
+        (substitute* #$output
+          (("<router-link to=\"jobs\">Jobs</router-link>" all)
+           (string-append all
+                          "<a href=\"" #$issue-tracker-uri "\" target=\"_blank\">Issue tracker</a>"))))))
+
+(define (install-laminar-template-gexp template)
+  "Return a G-expression that installs custom laminar TEMPLATE."
+  (with-imported-modules '((guix build utils))
+    #~(begin
+        (use-modules (guix build utils))
+
+        (define (switch-symlinks link target)
+          (let ((pivot (string-append link ".new")))
+            (symlink target pivot)
+            (rename-file pivot link)))
+
+        (mkdir-p "/var/lib/laminar/custom")
+        (switch-symlinks "/var/lib/laminar/custom/index.html" #$template))))
+
 (operating-system
   (host-name "genenetwork-development")
   (timezone "UTC")
@@ -683,6 +719,12 @@ command to be executed."
                             (laminar-configuration
                              (title "GeneNetwork CI")
                              (bind-http "localhost:9090")))
+                   (simple-service 'install-laminar-template
+                                   activation-service-type
+                                   (install-laminar-template-gexp
+                                    (computed-file
+                                     "laminar-template.html"
+                                     (laminar-template-gexp "https://issues.genenetwork.org"))))
                    (service webhook-service-type
                             (webhook-configuration
                              (port 9091)))
