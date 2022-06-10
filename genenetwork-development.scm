@@ -45,7 +45,9 @@
              (gnu services ci)
              (gnu services databases)
              (gnu services shepherd)
+             (gnu services web)
              (guix build-system gnu)
+             (guix channels)
              (guix git-download)
              ((guix licenses) #:prefix license:)
              (guix modules)
@@ -692,6 +694,55 @@ menu link to the issue tracker at ISSUE-TRACKER-URI."
         (mkdir-p "/var/lib/laminar/custom")
         (switch-symlinks "/var/lib/laminar/custom/index.html" #$template))))
 
+(define (channels-scm-gexp published-channel-names)
+  "Return a G-expression that builds a directory with a channels.scm
+file to be served by the laminar reverse
+proxy. PUBLISHED-CHANNEL-NAMES is a list of names of channels which
+should be included in the channels.scm file."
+  (with-imported-modules '((guix build utils))
+    #~(begin
+        (use-modules (ice-9 pretty-print)
+                     (guix build utils))
+
+        (mkdir-p #$output)
+        (call-with-output-file (string-append #$output "/channels.scm")
+          (lambda (port)
+            (pretty-print
+             '#$`(list ,@(filter-map (lambda (channel)
+                                       (and (memq (channel-name channel)
+                                                  published-channel-names)
+                                            (channel->code channel)))
+                                     (profile-channels
+                                      (or (getenv "GUIX_PROFILE")
+                                          (string-append %profile-directory "/current-guix")))))
+             port))))))
+
+(define (laminar-reverse-proxy-server-block listen laminar-bind-http published-channel-names)
+  "Return an <nginx-server-configuration> object to reverse proxy
+laminar. The nginx server will listen on LISTEN and reverse proxy to
+laminar listening on LAMINAR-BIND-HTTP. PUBLISHED-CHANNEL-NAMES is a
+list of channel names for which a channels.scm should be published."
+  (nginx-server-configuration
+   (server-name '("localhost"))
+   (listen (list listen))
+   (locations
+    (list (nginx-location-configuration
+           (uri "/")
+           (body (list (string-append "proxy_pass http://" laminar-bind-http ";")
+                       ;; We need these to allow Laminar's Server-Sent
+                       ;; Events to pass through.
+                       "proxy_http_version 1.1;"
+                       "proxy_set_header Connection \"\";"
+                       "proxy_buffering off;")))
+          ;; Publish the channels.scm used to build this container.
+          (nginx-location-configuration
+           (uri "= /channels.scm")
+           (body (list #~(string-append
+                          "root "
+                          #$(computed-file "channels.scm"
+                                           (channels-scm-gexp published-channel-names))
+                          ";"))))))))
+
 (operating-system
   (host-name "genenetwork-development")
   (timezone "UTC")
@@ -718,7 +769,7 @@ menu link to the issue tracker at ISSUE-TRACKER-URI."
                    (service laminar-service-type
                             (laminar-configuration
                              (title "GeneNetwork CI")
-                             (bind-http "localhost:9090")))
+                             (bind-http "localhost:9089")))
                    (simple-service 'install-laminar-template
                                    activation-service-type
                                    (install-laminar-template-gexp
@@ -752,4 +803,10 @@ menu link to the issue tracker at ISSUE-TRACKER-URI."
                                                             (passwd:uid (getpw "laminar"))
                                                             (passwd:gid (getpw "laminar"))))
                                                    (find-files #$%dump-genenetwork-database-export-directory)))))
+                   (service nginx-service-type
+                            (nginx-configuration
+                             (server-blocks
+                              (list (laminar-reverse-proxy-server-block
+                                     "9090" "localhost:9089"
+                                     (list 'gn-bioinformatics 'guix))))))
                    %base-services)))
