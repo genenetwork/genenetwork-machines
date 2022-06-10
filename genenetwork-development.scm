@@ -676,7 +676,7 @@ menu link to the issue tracker at ISSUE-TRACKER-URI."
         (substitute* #$output
           (("<router-link to=\"jobs\">Jobs</router-link>" all)
            (string-append all
-                          "<a href=\"" #$issue-tracker-uri "\" target=\"_blank\">Issue tracker</a>"))))))
+                          "<a href=\"" #$issue-tracker-uri "\" target=\"_blank\">Issues</a>"))))))
 
 (define (install-laminar-template-gexp template)
   "Return a G-expression that installs custom laminar TEMPLATE."
