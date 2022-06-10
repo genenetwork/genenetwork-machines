@@ -661,7 +661,7 @@ command to be executed."
 
 (define (laminar-template-gexp issue-tracker-uri)
   "Return a G-expression that creates a custom Laminar template with a
-menu link to the issue tracker at ISSUE-TRACKER-URI."
+menu link to channels.scm and the issue tracker at ISSUE-TRACKER-URI."
   (with-imported-modules '((guix build utils))
     #~(begin
         (use-modules (guix build utils))
@@ -676,9 +676,11 @@ menu link to the issue tracker at ISSUE-TRACKER-URI."
                                "/src/resources/index.html"))
         (copy-file "index.html" #$output)
         (substitute* #$output
-          (("<router-link to=\"jobs\">Jobs</router-link>" all)
-           (string-append all
-                          "<a href=\"" #$issue-tracker-uri "\" target=\"_blank\">Issues</a>"))))))
+          (("<router-link to=\"jobs\">Jobs</router-link>" jobs-link)
+           (string-append
+            "<a href=\"/channels.scm\" target=\"_blank\">channels.scm</a>"
+            jobs-link
+            "<a href=\"" #$issue-tracker-uri "\" target=\"_blank\">Issues</a>"))))))
 
 (define (install-laminar-template-gexp template)
   "Return a G-expression that installs custom laminar TEMPLATE."
