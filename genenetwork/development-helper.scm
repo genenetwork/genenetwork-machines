@@ -156,4 +156,10 @@ SOURCE. PROFILE is a profile with necessary dependencies."
           (use-modules (guix build utils))
 
           (chdir #$source)
+          ;; Set HOME so that we can write to ~/.gitconfig.
+          (setenv "HOME" "/tmp")
+          ;; The source directory is owned by root, and not the
+          ;; laminar user. So, we need to reassure git that it is
+          ;; safe.
+          (invoke "git" "config" "--global" "--add" "safe.directory" #$source)
           (invoke "tissue" "web" #$output)))))

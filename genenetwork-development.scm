@@ -636,7 +636,7 @@ command to be executed."
                                        tissue-website-gexp)
                                    source-checkout
                                    #$(profile
-                                      (content (packages->manifest (list tissue)))
+                                      (content (packages->manifest (list git-minimal tissue)))
                                       (allow-collisions? #t)))))
                             #:guix-daemon-uri %guix-daemon-uri
                             #:deep-clone? #t)))))
