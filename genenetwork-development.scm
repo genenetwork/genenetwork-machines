@@ -731,11 +731,10 @@ list of channel names for which a channels.scm should be published."
     (list (nginx-location-configuration
            (uri "/")
            (body (list (string-append "proxy_pass http://" laminar-bind-http ";")
-                       ;; We need these to allow Laminar's Server-Sent
+                       ;; Disable proxy buffering in host's nginx. We
+                       ;; need this to allow Laminar's Server-Sent
                        ;; Events to pass through.
-                       "proxy_http_version 1.1;"
-                       "proxy_set_header Connection \"\";"
-                       "proxy_buffering off;")))
+                       "proxy_pass_header X-Accel-Buffering;")))
           ;; Publish the channels.scm used to build this container.
           (nginx-location-configuration
            (uri "= /channels.scm")
