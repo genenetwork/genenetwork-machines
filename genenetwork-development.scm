@@ -579,14 +579,15 @@ command to be executed."
             (invoke "./pre-inst-env" "./dump.scm"
                     connection-settings-file
                     dump-directory)
-            ;; Validate dumped RDF.
-            (invoke #$(file-append raptor2 "/bin/rapper")
-                    "--input" "turtle"
-                    "--count"
-                    ;; We use --ignore-errors because we don't want to
-                    ;; print out potentially sensitive data.
-                    "--ignore-errors"
-                    (string-append dump-directory "/dump.ttl"))
+            ;; Validate dumped RDF, sending the error output to
+            ;; oblivion because we don't want to print out potentially
+            ;; sensitive data.
+            (with-error-to-file "/dev/null"
+              (cut invoke
+                   #$(file-append raptor2 "/bin/rapper")
+                   "--input" "turtle"
+                   "--count"
+                   (string-append dump-directory "/dump.ttl")))
             ;; Load RDF into virtuoso.
             (invoke "./pre-inst-env" "./load-rdf.scm"
                     connection-settings-file
