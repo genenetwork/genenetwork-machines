@@ -803,7 +803,8 @@ list of channel names for which a channels.scm should be published."
                                                      (chown file
                                                             (passwd:uid (getpw "laminar"))
                                                             (passwd:gid (getpw "laminar"))))
-                                                   (find-files #$%dump-genenetwork-database-export-directory)))))
+                                                   (find-files #$%dump-genenetwork-database-export-directory
+                                                               #:directories? #t)))))
                    (service nginx-service-type
                             (nginx-configuration
                              (server-blocks
