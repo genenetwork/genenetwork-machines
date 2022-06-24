@@ -561,6 +561,7 @@ command to be executed."
                          nss-certs virtuoso-ose)
       #~(begin
           (use-modules (guix build utils)
+                       (srfi srfi-26)
                        (ice-9 threads))
 
           (invoke "git" "clone"
