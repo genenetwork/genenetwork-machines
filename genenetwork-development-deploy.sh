@@ -26,6 +26,7 @@ container_script=$(guix system container --network \
                         --load-path=. \
                         --share=/var/guix/daemon-socket=/var/host-guix/daemon-socket \
                         --share=/var/guix-containers/genenetwork-development/var/lib/laminar=/var/lib/laminar \
+                        --share=/var/guix-containers/genenetwork-development/var/lib/virtuoso=/var/lib/virtuoso \
                         --expose=/export/data/genenetwork/genotype_files \
                         --share=/export/genenetwork-database-dump \
                         --share=/var/run/mysqld/mysqld.sock=/run/mysqld/mysqld.sock \
