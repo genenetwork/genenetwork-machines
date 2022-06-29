@@ -155,7 +155,7 @@ SOURCE. PROFILE is a profile with necessary dependencies."
       #~(begin
           (use-modules (guix build utils))
 
-          (chdir #$source)
+          (copy-recursively #$source (getcwd))
           (invoke "tissue" "web" #$output)))))
 
 (define (tissue-index-gexp source profile)
