@@ -157,3 +157,16 @@ SOURCE. PROFILE is a profile with necessary dependencies."
 
           (chdir #$source)
           (invoke "tissue" "web" #$output)))))
+
+(define (tissue-index-gexp source profile)
+  "Return a G-expression that builds a tissue index from
+SOURCE. PROFILE is a profile with necessary dependencies."
+  (with-imported-modules '((guix build utils))
+    (with-profile profile
+      #~(begin
+          (use-modules (guix build utils))
+
+          (mkdir-p #$output)
+          (chdir #$output)
+          (copy-recursively #$source #$output)
+          (invoke "tissue" "index")))))

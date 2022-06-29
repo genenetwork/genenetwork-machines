@@ -22,7 +22,7 @@
              ((gn packages genenetwork) #:select (genenetwork2 genenetwork3))
              ((gn packages quality-control) #:select (sbcl-qc))
              (gn services databases)
-             ((gnu packages admin) #:select (shepherd))
+             ((gnu packages admin) #:select (shepherd shadow))
              ((gnu packages base) #:select (gnu-make tar))
              ((gnu packages bash) #:select (bash))
              ((gnu packages bioinformatics) #:select (ccwl) #:prefix guix:)
@@ -643,6 +643,27 @@ command to be executed."
                             #:guix-daemon-uri %guix-daemon-uri
                             #:deep-clone? #t)))))
 
+(define (gn-gemtext-threads-index project job index)
+  (with-imported-modules '((guix utils))
+    #~(begin
+        (use-modules (guix utils))
+
+        (switch-symlinks #$index
+                         #$(derivation-job-gexp
+                            project
+                            job
+                            (with-imported-modules (source-module-closure '((genenetwork development-helper))
+                                                                          #:select? import-module?)
+                              #~(lambda (source-checkout)
+                                  ((@@ (genenetwork development-helper)
+                                       tissue-index-gexp)
+                                   source-checkout
+                                   #$(profile
+                                      (content (packages->manifest (list tissue)))
+                                      (allow-collisions? #t)))))
+                            #:guix-daemon-uri %guix-daemon-uri
+                            #:deep-clone? #t)))))
+
 (define gn-gemtext-threads-project
   (forge-project
    (name "gn-gemtext-threads")
@@ -652,9 +673,93 @@ command to be executed."
                    (name "gn-gemtext-threads")
                    (run (gn-gemtext-threads-website
                          this-forge-project
-                         this-forge-laminar-job)))))
-   ;; TODO: Also rebuild every night to handle update of stale issues.
+                         this-forge-laminar-job)))
+                  (forge-laminar-job
+                   (name "gn-gemtext-threads-index")
+                   (run (gn-gemtext-threads-index
+                         this-forge-project
+                         this-forge-laminar-job
+                         "/srv/http/issues-index")))))
    (ci-jobs-trigger 'webhook)))
+
+
+;;;
+;;; tissue service
+;;;
+
+(define-record-type* <tissue-configuration>
+  tissue-configuration make-tissue-configuration
+  tissue-configuration?
+  (address tissue-configuration-address
+           (default "127.0.0.1"))
+  (port tissue-configuration-port
+        (default 8080))
+  (indexed-repository tissue-configuration-indexed-repository))
+
+(define %tissue-accounts
+  (list (user-account
+         (name "tissue")
+         (group "tissue")
+         (system? #t)
+         (comment "tissue user")
+         (home-directory "/var/empty")
+         (shell (file-append shadow "/sbin/nologin")))
+        (user-group
+         (name "tissue")
+         (system? #t))))
+
+(define (tissue-shepherd-service config)
+  (shepherd-service
+   (documentation "Run tissue web server.")
+   (provision '(tissue))
+   (requirement '(networking))
+   (modules '((gnu build shepherd)
+              (gnu system file-systems)))
+   (start
+    (with-imported-modules (source-module-closure '((gnu build shepherd)
+                                                    (gnu system file-systems)))
+      #~(make-forkexec-constructor/container
+         (list #$(file-append tissue "/bin/tissue")
+               "run-web"
+               #$(string-append "--address=" (tissue-configuration-address config))
+               #$(string-append "--port=" (number->string (tissue-configuration-port config))))
+         #:user "tissue"
+         #:group "tissue"
+         #:directory #$(tissue-configuration-indexed-repository config)
+         #:mappings (list (file-system-mapping
+                           (source #$(tissue-configuration-indexed-repository config))
+                           (target source))
+                          (file-system-mapping
+                           (source "/var/log/tissue.log")
+                           (target source)
+                           (writable? #t)))
+         #:log-file "/var/log/tissue.log")))
+   (stop #~(make-kill-destructor))))
+
+(define tissue-service-type
+  (service-type
+   (name 'tissue)
+   (description "Run tissue web server.")
+   (extensions
+    (list (service-extension account-service-type
+                             (const %tissue-accounts))
+          (service-extension shepherd-root-service-type
+                             (compose list tissue-shepherd-service))))))
+
+(define (tissue-reverse-proxy-server-block listen tissue-listen tissue-static-document-root)
+  "Return an <nginx-server-configuration> object to reverse proxy
+tissue. The nginx server will listen on LISTEN, reverse proxy to
+tissue listening on TISSUE-LISTEN and serve static files from
+TISSUE-STATIC-DOCUMENT-ROOT."
+  (nginx-server-configuration
+   (server-name '("issues.genenetwork.org"))
+   (listen (list listen))
+   (root tissue-static-document-root)
+   (try-files (list "$uri" "@tissue-search"))
+   (locations
+    (list (nginx-location-configuration
+           (uri "@tissue-search")
+           (body (list (string-append "proxy_pass http://" tissue-listen ";"))))))))
 
 
 ;;;
@@ -807,10 +912,16 @@ list of channel names for which a channels.scm should be published."
                                                             (passwd:gid (getpw "laminar"))))
                                                    (find-files #$%dump-genenetwork-database-export-directory
                                                                #:directories? #t)))))
+                   (service tissue-service-type
+                            (tissue-configuration
+                             (port 9088)
+                             (indexed-repository "/srv/http/issues-index")))
                    (service nginx-service-type
                             (nginx-configuration
                              (server-blocks
                               (list (laminar-reverse-proxy-server-block
                                      "9090" "localhost:9089"
-                                     (list 'gn-bioinformatics 'guix))))))
+                                     (list 'gn-bioinformatics 'guix))
+                                    (tissue-reverse-proxy-server-block
+                                     "9090" "localhost:9088" "/srv/http/issues")))))
                    %base-services)))
