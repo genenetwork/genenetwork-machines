@@ -690,11 +690,16 @@ command to be executed."
 (define-record-type* <tissue-configuration>
   tissue-configuration make-tissue-configuration
   tissue-configuration?
-  (address tissue-configuration-address
-           (default "127.0.0.1"))
-  (port tissue-configuration-port
-        (default 8080))
-  (indexed-repository tissue-configuration-indexed-repository))
+  (listen tissue-configuration-listen
+          (default "127.0.0.1:8080"))
+  (hosts tissue-configuration-hosts
+         (default '())))
+
+(define-record-type* <tissue-host>
+  tissue-host make-tissue-host
+  tissue-host?
+  (name tissue-host-name)
+  (indexed-repository tissue-host-indexed-repository))
 
 (define %tissue-accounts
   (list (user-account
@@ -707,6 +712,17 @@ command to be executed."
         (user-group
          (name "tissue")
          (system? #t))))
+
+(define (tissue-conf-gexp config)
+  #~(begin
+      (call-with-output-file #$output
+        (lambda (port)
+          (write '((listen . #$(tissue-configuration-listen config))
+                   (hosts . #$(map (lambda (host)
+                                     `(,(tissue-host-name host)
+                                       (indexed-repository . ,(tissue-host-indexed-repository host))))
+                                   (tissue-configuration-hosts config))))
+                 port)))))
 
 (define (tissue-shepherd-service config)
   (shepherd-service
@@ -721,18 +737,19 @@ command to be executed."
       #~(make-forkexec-constructor/container
          (list #$(file-append tissue "/bin/tissue")
                "run-web"
-               #$(string-append "--address=" (tissue-configuration-address config))
-               #$(string-append "--port=" (number->string (tissue-configuration-port config))))
+               #$(computed-file "tissue.conf" (tissue-conf-gexp config)))
          #:user "tissue"
          #:group "tissue"
-         #:directory #$(tissue-configuration-indexed-repository config)
-         #:mappings (list (file-system-mapping
-                           (source #$(tissue-configuration-indexed-repository config))
-                           (target source))
-                          (file-system-mapping
+         #:mappings (cons (file-system-mapping
                            (source "/var/log/tissue.log")
                            (target source)
-                           (writable? #t)))
+                           (writable? #t))
+                          (map (lambda (directory)
+                                 (file-system-mapping
+                                  (source directory)
+                                  (target source)))
+                               '#$(map tissue-host-indexed-repository
+                                       (tissue-configuration-hosts config))))
          #:log-file "/var/log/tissue.log")))
    (stop #~(make-kill-destructor))))
 
@@ -914,8 +931,11 @@ list of channel names for which a channels.scm should be published."
                                                                #:directories? #t)))))
                    (service tissue-service-type
                             (tissue-configuration
-                             (port 9088)
-                             (indexed-repository "/srv/http/issues-index")))
+                             (listen "127.0.0.1:9088")
+                             (hosts
+                              (list (tissue-host
+                                     (name "issues.genenetwork.org")
+                                     (indexed-repository "/srv/http/issues-index"))))))
                    (service nginx-service-type
                             (nginx-configuration
                              (server-blocks
