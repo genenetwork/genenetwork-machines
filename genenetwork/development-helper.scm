@@ -146,27 +146,3 @@ dependencies."
              (invoke "gunicorn"
                      "-b" (string-append ip ":" port)
                      "gn3.app:create_app()")))))))
-
-(define (tissue-website-gexp source profile)
-  "Return a G-expression that builds a tissue website from
-SOURCE. PROFILE is a profile with necessary dependencies."
-  (with-imported-modules '((guix build utils))
-    (with-profile profile
-      #~(begin
-          (use-modules (guix build utils))
-
-          (copy-recursively #$source (getcwd))
-          (invoke "tissue" "web" #$output)))))
-
-(define (tissue-index-gexp source profile)
-  "Return a G-expression that builds a tissue index from
-SOURCE. PROFILE is a profile with necessary dependencies."
-  (with-imported-modules '((guix build utils))
-    (with-profile profile
-      #~(begin
-          (use-modules (guix build utils))
-
-          (mkdir-p #$output)
-          (chdir #$output)
-          (copy-recursively #$source #$output)
-          (invoke "tissue" "index")))))

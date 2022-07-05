@@ -18,7 +18,6 @@
 ;;; <https://www.gnu.org/licenses/>.
 
 (use-modules (gnu)
-             ((gn packages gemini) #:select (tissue))
              ((gn packages genenetwork) #:select (genenetwork2 genenetwork3))
              ((gn packages quality-control) #:select (sbcl-qc))
              (gn services databases)
@@ -57,6 +56,7 @@
              (guix store)
              (forge forge)
              (forge laminar)
+             (forge tissue)
              (forge utils)
              (forge webhook)
              (srfi srfi-1)
@@ -622,48 +622,6 @@ command to be executed."
 ;;; gn-gemtext-threads
 ;;;
 
-(define (gn-gemtext-threads-website project job)
-  (with-imported-modules '((guix utils))
-    #~(begin
-        (use-modules (guix utils))
-      
-        (switch-symlinks #$(forge-project-website-directory project)
-                         #$(derivation-job-gexp
-                            project
-                            job
-                            (with-imported-modules (source-module-closure '((genenetwork development-helper))
-                                                                          #:select? import-module?)
-                              #~(lambda (source-checkout)
-                                  ((@@ (genenetwork development-helper)
-                                       tissue-website-gexp)
-                                   source-checkout
-                                   #$(profile
-                                      (content (packages->manifest (list tissue)))
-                                      (allow-collisions? #t)))))
-                            #:guix-daemon-uri %guix-daemon-uri
-                            #:deep-clone? #t)))))
-
-(define (gn-gemtext-threads-index project job index)
-  (with-imported-modules '((guix utils))
-    #~(begin
-        (use-modules (guix utils))
-
-        (switch-symlinks #$index
-                         #$(derivation-job-gexp
-                            project
-                            job
-                            (with-imported-modules (source-module-closure '((genenetwork development-helper))
-                                                                          #:select? import-module?)
-                              #~(lambda (source-checkout)
-                                  ((@@ (genenetwork development-helper)
-                                       tissue-index-gexp)
-                                   source-checkout
-                                   #$(profile
-                                      (content (packages->manifest (list tissue)))
-                                      (allow-collisions? #t)))))
-                            #:guix-daemon-uri %guix-daemon-uri
-                            #:deep-clone? #t)))))
-
 (define gn-gemtext-threads-project
   (forge-project
    (name "gn-gemtext-threads")
@@ -671,112 +629,14 @@ command to be executed."
    (website-directory "/srv/http/issues")
    (ci-jobs (list (forge-laminar-job
                    (name "gn-gemtext-threads")
-                   (run (gn-gemtext-threads-website
-                         this-forge-project
-                         this-forge-laminar-job)))
-                  (forge-laminar-job
-                   (name "gn-gemtext-threads-index")
-                   (run (gn-gemtext-threads-index
-                         this-forge-project
-                         this-forge-laminar-job
-                         "/srv/http/issues-index")))))
+                   (run (with-packages (list nss-certs openssl)
+                          (with-imported-modules '((guix build utils))
+                            #~(begin
+                                (use-modules (guix build utils))
+
+                                (invoke #$(file-append tissue "/bin/tissue")
+                                        "pull" "issues.genenetwork.org"))))))))
    (ci-jobs-trigger 'webhook)))
-
-
-;;;
-;;; tissue service
-;;;
-
-(define-record-type* <tissue-configuration>
-  tissue-configuration make-tissue-configuration
-  tissue-configuration?
-  (listen tissue-configuration-listen
-          (default "127.0.0.1:8080"))
-  (hosts tissue-configuration-hosts
-         (default '())))
-
-(define-record-type* <tissue-host>
-  tissue-host make-tissue-host
-  tissue-host?
-  (name tissue-host-name)
-  (indexed-repository tissue-host-indexed-repository))
-
-(define %tissue-accounts
-  (list (user-account
-         (name "tissue")
-         (group "tissue")
-         (system? #t)
-         (comment "tissue user")
-         (home-directory "/var/empty")
-         (shell (file-append shadow "/sbin/nologin")))
-        (user-group
-         (name "tissue")
-         (system? #t))))
-
-(define (tissue-conf-gexp config)
-  #~(begin
-      (call-with-output-file #$output
-        (lambda (port)
-          (write '((listen . #$(tissue-configuration-listen config))
-                   (hosts . #$(map (lambda (host)
-                                     `(,(tissue-host-name host)
-                                       (indexed-repository . ,(tissue-host-indexed-repository host))))
-                                   (tissue-configuration-hosts config))))
-                 port)))))
-
-(define (tissue-shepherd-service config)
-  (shepherd-service
-   (documentation "Run tissue web server.")
-   (provision '(tissue))
-   (requirement '(networking))
-   (modules '((gnu build shepherd)
-              (gnu system file-systems)))
-   (start
-    (with-imported-modules (source-module-closure '((gnu build shepherd)
-                                                    (gnu system file-systems)))
-      #~(make-forkexec-constructor/container
-         (list #$(file-append tissue "/bin/tissue")
-               "run-web"
-               #$(computed-file "tissue.conf" (tissue-conf-gexp config)))
-         #:user "tissue"
-         #:group "tissue"
-         #:mappings (cons (file-system-mapping
-                           (source "/var/log/tissue.log")
-                           (target source)
-                           (writable? #t))
-                          (map (lambda (directory)
-                                 (file-system-mapping
-                                  (source directory)
-                                  (target source)))
-                               '#$(map tissue-host-indexed-repository
-                                       (tissue-configuration-hosts config))))
-         #:log-file "/var/log/tissue.log")))
-   (stop #~(make-kill-destructor))))
-
-(define tissue-service-type
-  (service-type
-   (name 'tissue)
-   (description "Run tissue web server.")
-   (extensions
-    (list (service-extension account-service-type
-                             (const %tissue-accounts))
-          (service-extension shepherd-root-service-type
-                             (compose list tissue-shepherd-service))))))
-
-(define (tissue-reverse-proxy-server-block listen tissue-listen tissue-static-document-root)
-  "Return an <nginx-server-configuration> object to reverse proxy
-tissue. The nginx server will listen on LISTEN, reverse proxy to
-tissue listening on TISSUE-LISTEN and serve static files from
-TISSUE-STATIC-DOCUMENT-ROOT."
-  (nginx-server-configuration
-   (server-name '("issues.genenetwork.org"))
-   (listen (list listen))
-   (root tissue-static-document-root)
-   (try-files (list "$uri" "@tissue-search"))
-   (locations
-    (list (nginx-location-configuration
-           (uri "@tissue-search")
-           (body (list (string-append "proxy_pass http://" tissue-listen ";"))))))))
 
 
 ;;;
@@ -868,6 +728,20 @@ list of channel names for which a channels.scm should be published."
                                            (channels-scm-gexp published-channel-names))
                           ";"))))))))
 
+(define (tissue-reverse-proxy-server-block listen)
+  "Return an <nginx-server-configuration> object listening on LISTEN to
+reverse proxy tissue."
+  (nginx-server-configuration
+   (server-name '("issues.genenetwork.org"))
+   (listen (list listen))
+   (root "/var/lib/tissue/issues.genenetwork.org/website")
+   (try-files (list "$uri" "@tissue-search"))
+   (locations
+    (list (nginx-location-configuration
+           (uri "@tissue-search")
+           (body (list "proxy_pass http://unix:/var/run/tissue/socket:;"
+                       "proxy_set_header Host $host;")))))))
+
 (operating-system
   (host-name "genenetwork-development")
   (timezone "UTC")
@@ -931,17 +805,16 @@ list of channel names for which a channels.scm should be published."
                                                                #:directories? #t)))))
                    (service tissue-service-type
                             (tissue-configuration
-                             (listen "127.0.0.1:9088")
                              (hosts
                               (list (tissue-host
                                      (name "issues.genenetwork.org")
-                                     (indexed-repository "/srv/http/issues-index"))))))
+                                     (user "laminar")
+                                     (upstream-repository "https://github.com/genenetwork/gn-gemtext-threads"))))))
                    (service nginx-service-type
                             (nginx-configuration
                              (server-blocks
                               (list (laminar-reverse-proxy-server-block
                                      "9090" "localhost:9089"
                                      (list 'gn-bioinformatics 'guix))
-                                    (tissue-reverse-proxy-server-block
-                                     "9090" "localhost:9088" "/srv/http/issues")))))
+                                    (tissue-reverse-proxy-server-block "9090")))))
                    %base-services)))
