@@ -411,7 +411,11 @@ command to be executed."
                "127.0.0.1" #$(number->string (development-server-configuration-port config)))
          #:mappings (list (file-system-mapping
                            (source #$(development-server-configuration-executable-path config))
-                           (target source)))
+                           (target source))
+                          (file-system-mapping
+                           (source "/run/mysqld/mysqld.sock")
+                           (target source)
+                           (writable? #t)))
          #:log-file "/var/log/genenetwork3.log")))
    (stop #~(make-kill-destructor))))
 
