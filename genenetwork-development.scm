@@ -735,7 +735,7 @@ reverse proxy tissue."
    (server-name '("issues.genenetwork.org"))
    (listen (list listen))
    (root "/var/lib/tissue/issues.genenetwork.org/website")
-   (try-files (list "$uri" "@tissue-search"))
+   (try-files (list "$uri" "$uri.html" "@tissue-search"))
    (locations
     (list (nginx-location-configuration
            (uri "@tissue-search")
