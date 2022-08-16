@@ -119,7 +119,7 @@ files."
             ((_ ip port)
              (setenv "SERVER_PORT" port)
              (setenv "GN2_PROFILE" #$profile)
-             (setenv "GN_PROXY_URL" "http://genenetwork.org/gn3-proxy")
+             (setenv "GN_PROXY_URL" "http://genenetwork.org/gn3-proxy/")
              (setenv "GN_SERVER_URL" "https://gn3dev.genenetwork.org/")
              (setenv "GN3_LOCAL_URL"
                      (string-append "http://localhost:"
