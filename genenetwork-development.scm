@@ -208,7 +208,7 @@ to be executed."
                   #$(profile
                      (content (package->development-manifest genenetwork2))
                      (allow-collisions? #t)))
-          (setenv "GN_PROXY_URL" "http://genenetwork.org/gn3-proxy")
+          (setenv "GN_PROXY_URL" "http://genenetwork.org/gn3-proxy/")
           (setenv "GN3_LOCAL_URL" "http://localhost:9093")
           (setenv "GENENETWORK_FILES" #$%genotype-files)
           (setenv "HOME" "/tmp")
