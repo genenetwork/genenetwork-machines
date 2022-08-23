@@ -28,6 +28,7 @@ container_script=$(guix system container --network \
                         --share=/var/guix-containers/genenetwork-development/var/lib/laminar=/var/lib/laminar \
                         --share=/var/guix-containers/genenetwork-development/var/lib/tissue=/var/lib/tissue \
                         --share=/var/guix-containers/genenetwork-development/var/lib/virtuoso=/var/lib/virtuoso \
+                        --share=/var/guix-containers/genenetwork-development/var/log/cd=/var/log/cd \
                         --expose=/export/data/genenetwork/genotype_files \
                         --share=/export/genenetwork-database-dump \
                         --share=/var/run/mysqld/mysqld.sock=/run/mysqld/mysqld.sock \

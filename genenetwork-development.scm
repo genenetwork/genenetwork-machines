@@ -280,7 +280,7 @@ describing genenetwork2."
                            (source "/run/mysqld/mysqld.sock")
                            (target source)
                            (writable? #t)))
-         #:log-file "/var/log/genenetwork2.log")))
+         #:log-file "/var/log/cd/genenetwork2.log")))
    (stop #~(make-kill-destructor))))
 
 (define %default-genenetwork2-configuration
@@ -416,7 +416,7 @@ command to be executed."
                            (source "/run/mysqld/mysqld.sock")
                            (target source)
                            (writable? #t)))
-         #:log-file "/var/log/genenetwork3.log")))
+         #:log-file "/var/log/cd/genenetwork3.log")))
    (stop #~(make-kill-destructor))))
 
 (define %default-genenetwork3-configuration
