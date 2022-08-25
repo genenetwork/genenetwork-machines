@@ -271,6 +271,8 @@ describing genenetwork2."
       #~(make-forkexec-constructor/container
          (list #$(development-server-configuration-executable-path config)
                "127.0.0.1" (number->string #$(development-server-configuration-port config)))
+         #:user "genenetwork"
+         #:group "genenetwork"
          #:mappings (list (file-system-mapping
                            (source #$(development-server-configuration-executable-path config))
                            (target source))
@@ -301,12 +303,26 @@ describing genenetwork2."
                   #$%genenetwork3-port
                   #$%genotype-files))))))
 
+(define %genenetwork-accounts
+  (list (user-group
+         (name "genenetwork")
+         (system? #t))
+        (user-account
+         (name "genenetwork")
+         (group "genenetwork")
+         (system? #t)
+         (comment "GeneNetwork user")
+         (home-directory "/var/empty")
+         (shell (file-append shadow "/sbin/nologin")))))
+
 (define genenetwork2-service-type
   (service-type
    (name 'genenetwork2)
    (description "Run GeneNetwork 2 development server and CI.")
    (extensions
-    (list (service-extension activation-service-type
+    (list (service-extension account-service-type
+                             (const %genenetwork-accounts))
+          (service-extension activation-service-type
                              development-server-activation)
           (service-extension shepherd-root-service-type
                              (compose list genenetwork2-shepherd-service))
@@ -410,6 +426,8 @@ command to be executed."
       #~(make-forkexec-constructor/container
          (list #$(development-server-configuration-executable-path config)
                "127.0.0.1" #$(number->string (development-server-configuration-port config)))
+         #:user "genenetwork"
+         #:group "genenetwork"
          #:mappings (list (file-system-mapping
                            (source #$(development-server-configuration-executable-path config))
                            (target source))
@@ -441,7 +459,9 @@ command to be executed."
    (name 'genenetwork3)
    (description "Run GeneNetwork 3.")
    (extensions
-    (list (service-extension activation-service-type
+    (list (service-extension account-service-type
+                             (const %genenetwork-accounts))
+          (service-extension activation-service-type
                              development-server-activation)
           (service-extension shepherd-root-service-type
                              (compose list genenetwork3-shepherd-service))
