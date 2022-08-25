@@ -7,7 +7,9 @@ The GeneNetwork development container is run on /penguin2/. It runs
 continuous integration and continuous deployment services for
 genenetwork2, genenetwork3 and several other associated projects.
 
-To build and install the container, on /penguin2/, run
+To build and install the container, you will need the
+guix-bioinformatics and guix-forge channels. Once these channels are
+pulled and available, on /penguin2/, run
 #+BEGIN_SRC shell
 $ ./genenetwork-development-deploy.sh
 #+END_SRC
