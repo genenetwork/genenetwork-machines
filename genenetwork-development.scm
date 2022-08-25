@@ -1,5 +1,6 @@
 ;;; genenetwork-machines --- Guix configuration for genenetwork machines
 ;;; Copyright © 2022 Arun Isaac <arunisaac@systemreboot.net>
+;;; Copyright © 2022 Frederick Muriuki Muriithi <fredmanglis@gmail.com>
 ;;;
 ;;; This file is part of genenetwork-machines.
 ;;;
