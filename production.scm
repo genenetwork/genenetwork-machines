@@ -18,7 +18,8 @@
 ;;; <https://www.gnu.org/licenses/>.
 
 (use-modules (gnu)
-             (gn services databases))
+             (gn services databases)
+             (gnu services databases))
 
 (operating-system
   (host-name "genenetwork")
@@ -30,8 +31,9 @@
   (file-systems %base-file-systems)
   (users %base-user-accounts)
   (packages %base-packages)
-  (services (cons (service virtuoso-service-type
-                           (virtuoso-configuration
-                            (server-port 8891)
-                            (http-server-port 8892)))
-                  %base-services)))
+  (services (cons* (service mysql-service-type)
+                   (service virtuoso-service-type
+                            (virtuoso-configuration
+                             (server-port 8891)
+                             (http-server-port 8892)))
+                   %base-services)))
