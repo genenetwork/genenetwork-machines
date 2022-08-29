@@ -21,7 +21,7 @@
 
 # Build and install genenetwork production container on tux02.
 
-container_script=$(guix system container --network \
+container_script=$(guix system container \
                         --verbosity=3 \
                         --share=/var/guix-containers/genenetwork/var/lib/virtuoso=/var/lib/virtuoso \
                         production.scm)
