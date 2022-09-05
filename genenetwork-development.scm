@@ -727,11 +727,16 @@ should be included in the channels.scm file."
                                           (string-append %profile-directory "/current-guix")))))
              port))))))
 
-(define (laminar-reverse-proxy-server-block listen laminar-bind-http published-channel-names)
+;; Port on which webhook is listening
+(define %webhook-port
+  9091)
+
+(define (laminar-reverse-proxy-server-block listen laminar-bind-http webhook-port published-channel-names)
   "Return an <nginx-server-configuration> object to reverse proxy
 laminar. The nginx server will listen on LISTEN and reverse proxy to
-laminar listening on LAMINAR-BIND-HTTP. PUBLISHED-CHANNEL-NAMES is a
-list of channel names for which a channels.scm should be published."
+laminar listening on LAMINAR-BIND-HTTP. WEBHOOK-PORT is the port the
+webhook server is listening on. PUBLISHED-CHANNEL-NAMES is a list of
+channel names for which a channels.scm should be published."
   (nginx-server-configuration
    (server-name '("ci.genenetwork.org"))
    (listen (list listen))
@@ -743,6 +748,12 @@ list of channel names for which a channels.scm should be published."
                        ;; need this to allow Laminar's Server-Sent
                        ;; Events to pass through.
                        "proxy_pass_header X-Accel-Buffering;")))
+          ;; Reverse proxy webhook server.
+          (nginx-location-configuration
+           (uri "/hooks/")
+           (body (list (string-append "proxy_pass http://localhost:"
+                                      (number->string webhook-port) ";")
+                       "proxy_set_header Host $host;")))
           ;; Publish the channels.scm used to build this container.
           (nginx-location-configuration
            (uri "= /channels.scm")
@@ -801,7 +812,7 @@ reverse proxy tissue."
                                      (laminar-template-gexp "https://issues.genenetwork.org"))))
                    (service webhook-service-type
                             (webhook-configuration
-                             (port 9091)))
+                             (port %webhook-port)))
                    (service redis-service-type)
                    (service virtuoso-service-type
                             (virtuoso-configuration
@@ -838,7 +849,7 @@ reverse proxy tissue."
                             (nginx-configuration
                              (server-blocks
                               (list (laminar-reverse-proxy-server-block
-                                     "9090" "localhost:9089"
+                                     "9090" "localhost:9089" %webhook-port
                                      (list 'gn-bioinformatics))
                                     (tissue-reverse-proxy-server-block "9090")))))
                    %base-services)))
