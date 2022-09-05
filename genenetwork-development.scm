@@ -839,6 +839,6 @@ reverse proxy tissue."
                              (server-blocks
                               (list (laminar-reverse-proxy-server-block
                                      "9090" "localhost:9089"
-                                     (list 'gn-bioinformatics 'guix))
+                                     (list 'gn-bioinformatics))
                                     (tissue-reverse-proxy-server-block "9090")))))
                    %base-services)))
