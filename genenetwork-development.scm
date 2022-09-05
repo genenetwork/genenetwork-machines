@@ -651,7 +651,6 @@ command to be executed."
   (forge-project
    (name "gn-gemtext-threads")
    (repository "https://github.com/genenetwork/gn-gemtext-threads/")
-   (website-directory "/srv/http/issues")
    (ci-jobs (list (forge-laminar-job
                    (name "gn-gemtext-threads")
                    (run (with-packages (list nss-certs openssl)
