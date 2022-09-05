@@ -733,7 +733,7 @@ laminar. The nginx server will listen on LISTEN and reverse proxy to
 laminar listening on LAMINAR-BIND-HTTP. PUBLISHED-CHANNEL-NAMES is a
 list of channel names for which a channels.scm should be published."
   (nginx-server-configuration
-   (server-name '("localhost"))
+   (server-name '("ci.genenetwork.org"))
    (listen (list listen))
    (locations
     (list (nginx-location-configuration
