@@ -177,6 +177,10 @@ CONFIG, a <development-server-configuration> object, on startup."
 (define %genotype-files
   "/export/data/genenetwork/genotype_files")
 
+;; Port on which genenetwork2 is listening
+(define %genenetwork2-port
+  9092)
+
 ;; Port on which genenetwork3 is listening
 (define %genenetwork3-port
   9093)
@@ -250,7 +254,7 @@ to be executed."
                          this-forge-project
                          (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
                                "-c" "../test/requests/test-website.py"
-                               "--all" "http://localhost:9092")))
+                               "--all" (string-append "http://localhost:" (number->string %genenetwork2-port)))))
                    (trigger? #f))))
    (ci-jobs-trigger 'webhook)))
 
@@ -727,6 +731,29 @@ should be included in the channels.scm file."
                                           (string-append %profile-directory "/current-guix")))))
              port))))))
 
+(define (development-server-reverse-proxy-server-block listen gn2-port gn3-port)
+  "Return an <nginx-server-configuration> object listening on LISTEN to
+reverse proxy the GeneNetwork development server. GN2-PORT and
+GN3-PORT are the ports GeneNetwork2 and GeneNetwork3 are listening
+on."
+  (nginx-server-configuration
+   (server-name '("cd.genenetwork.org"))
+   (listen (list listen))
+   (locations
+    (list (nginx-location-configuration
+           ;; Reverse proxy genenetwork2.
+           (uri "/")
+           (body (list (string-append "proxy_pass http://localhost:"
+                                      (number->string gn2-port) ";")
+                       "proxy_set_header Host $host;")))
+          (nginx-location-configuration
+           ;; Reverse proxy genenetwork3.
+           (uri "/api3")
+           (body (list "rewrite /api3/(.*) /api/$1 break;"
+                       (string-append "proxy_pass http://localhost:"
+                                      (number->string gn3-port) ";")
+                       "proxy_set_header Host $host;")))))))
+
 ;; Port on which webhook is listening
 (define %webhook-port
   9091)
@@ -821,7 +848,7 @@ reverse proxy tissue."
                    (service genenetwork2-service-type
                             (development-server-configuration
                              (inherit %default-genenetwork2-configuration)
-                             (port 9092)))
+                             (port %genenetwork2-port)))
                    (service genenetwork3-service-type
                             (development-server-configuration
                              (inherit %default-genenetwork3-configuration)
@@ -848,7 +875,9 @@ reverse proxy tissue."
                    (service nginx-service-type
                             (nginx-configuration
                              (server-blocks
-                              (list (laminar-reverse-proxy-server-block
+                              (list (development-server-reverse-proxy-server-block
+                                     "9090" %genenetwork2-port %genenetwork3-port)
+                                    (laminar-reverse-proxy-server-block
                                      "9090" "localhost:9089" %webhook-port
                                      (list 'gn-bioinformatics))
                                     (tissue-reverse-proxy-server-block "9090")))))
