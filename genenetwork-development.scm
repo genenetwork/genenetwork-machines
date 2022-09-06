@@ -210,7 +210,7 @@ to be executed."
                      (content (package->development-manifest genenetwork2))
                      (allow-collisions? #t)))
           (setenv "GN_PROXY_URL" "http://genenetwork.org/gn3-proxy/")
-          (setenv "GN3_LOCAL_URL" "http://localhost:9093")
+          (setenv "GN3_LOCAL_URL" (string-append "http://localhost:" (number->string #$%genenetwork3-port)))
           (setenv "GENENETWORK_FILES" #$%genotype-files)
           (setenv "HOME" "/tmp")
           (setenv "SQL_URI" "mysql://webqtlout:webqtlout@localhost/db_webqtl")
