@@ -690,9 +690,10 @@ menu link to channels.scm and the issue tracker at ISSUE-TRACKER-URI."
         (substitute* #$output
           (("<router-link to=\"jobs\">Jobs</router-link>" jobs-link)
            (string-append
-            "<a href=\"/channels.scm\" target=\"_blank\">channels.scm</a>"
+            "<a href=\"https://cd.genenetwork.org\" target=\"_blank\">CD</a>"
             jobs-link
-            "<a href=\"" #$issue-tracker-uri "\" target=\"_blank\">Issues</a>"))))))
+            "<a href=\"" #$issue-tracker-uri "\" target=\"_blank\">Issues</a>"
+            "<a href=\"/channels.scm\" target=\"_blank\">channels.scm</a>"))))))
 
 (define (install-laminar-template-gexp template)
   "Return a G-expression that installs custom laminar TEMPLATE."
