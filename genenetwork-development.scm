@@ -678,15 +678,8 @@ menu link to channels.scm and the issue tracker at ISSUE-TRACKER-URI."
     #~(begin
         (use-modules (guix build utils))
 
-        (set-path-environment-variable "PATH"
-                                       (list "bin")
-                                       (list #$gzip #$tar))
-        (invoke "tar" "--extract" "--strip-components=3"
-                (string-append "--file=" #$(package-source laminar))
-                (string-append "laminar-"
-                               #$(package-version laminar)
-                               "/src/resources/index.html"))
-        (copy-file "index.html" #$output)
+        (copy-file (string-append #$(package-source laminar) "/src/resources/index.html")
+                   #$output)
         (substitute* #$output
           (("<router-link to=\"jobs\">Jobs</router-link>" jobs-link)
            (string-append
