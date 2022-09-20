@@ -232,7 +232,7 @@ to be executed."
                    (run (genenetwork2-tests
                          this-forge-project
                          (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
-                               "-c" "-m" "unittest" "-v")))
+                               "-c" "-m" "pytest")))
                    ;; If unit tests pass, redeploy genenetwork2.
                    (after #~(begin
                               (use-modules (guix build utils))
