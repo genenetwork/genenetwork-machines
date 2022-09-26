@@ -101,13 +101,14 @@ with genenetwork3 dependencies."
             (invoke "pylint" "gn3"))
           (mkdir-p #$output)))))
 
-(define (genenetwork2-runner-gexp genenetwork2-source profile gn3-port genotype-files)
+(define (genenetwork2-runner-gexp genenetwork2-source profile gn3-port
+                                  genotype-files xapian-db-path)
   "Return a G-expression that runs the genenetwork2 server for
 GENENETWORK2-SOURCE in PROFILE. GENENETWORK2-SOURCE is a checkout of
 the genenetwork2 source code. PROFILE is a profile with genenetwork2
 dependencies. GN3-PORT is the port on which a local instance of
 genenetwork3 is listening. GENOTYPE-FILES is the path to genotype
-files."
+files. XAPIAN-DB-PATH is the path to the xapian search index."
   (with-imported-modules '((guix build utils))
     (with-profile profile
       #~(begin
@@ -128,6 +129,7 @@ files."
              (setenv "SQL_URI" "mysql://webqtlout:webqtlout@localhost/db_webqtl")
              (setenv "HOME" "/tmp")
              (setenv "NO_REDIS" "no-redis")
+             (setenv "XAPIAN_DB_PATH" #$xapian-db-path)
              (invoke "sh" "bin/genenetwork2")))))))
 
 (define (genenetwork3-runner-gexp genenetwork3-source profile)

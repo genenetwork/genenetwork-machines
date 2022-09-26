@@ -177,6 +177,10 @@ CONFIG, a <development-server-configuration> object, on startup."
 (define %genotype-files
   "/export/data/genenetwork/genotype_files")
 
+;; Path to the xapian search index used by genenetwork2
+(define %xapian-db-path
+  "/export/data/genenetwork/xapian")
+
 ;; Port on which genenetwork2 is listening
 (define %genenetwork2-port
   9092)
@@ -284,6 +288,9 @@ describing genenetwork2."
                            (source #$%genotype-files)
                            (target source))
                           (file-system-mapping
+                           (source #$%xapian-db-path)
+                           (target source))
+                          (file-system-mapping
                            (source "/run/mysqld/mysqld.sock")
                            (target source)
                            (writable? #t)))
@@ -305,7 +312,8 @@ describing genenetwork2."
                      (content (package->development-manifest genenetwork2))
                      (allow-collisions? #t))
                   #$%genenetwork3-port
-                  #$%genotype-files))))))
+                  #$%genotype-files
+                  #$%xapian-db-path))))))
 
 (define %genenetwork-accounts
   (list (user-group
