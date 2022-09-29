@@ -130,7 +130,7 @@ files. XAPIAN-DB-PATH is the path to the xapian search index."
              (setenv "HOME" "/tmp")
              (setenv "NO_REDIS" "no-redis")
              (setenv "XAPIAN_DB_PATH" #$xapian-db-path)
-             (invoke "sh" "bin/genenetwork2")))))))
+             (invoke "sh" "bin/genenetwork2" "etc/default_settings.py" "-gunicorn-prod")))))))
 
 (define (genenetwork3-runner-gexp genenetwork3-source profile)
   "Return a G-expression that runs the genenetwork3 server for
