@@ -1,5 +1,6 @@
 ;;; genenetwork-machines --- Guix configuration for genenetwork machines
 ;;; Copyright © 2022 Arun Isaac <arunisaac@systemreboot.net>
+;;; Copyright © 2022 Frederick Muriuki Muriithi <fredmanglis@gmail.com>
 ;;;
 ;;; This file is part of genenetwork-machines.
 ;;;
@@ -130,6 +131,7 @@ files. XAPIAN-DB-PATH is the path to the xapian search index."
              (setenv "HOME" "/tmp")
              (setenv "NO_REDIS" "no-redis")
              (setenv "XAPIAN_DB_PATH" #$xapian-db-path)
+	     (setenv "RUST_BACKTRACE" "1")
              (invoke "sh" "bin/genenetwork2" "etc/default_settings.py" "-gunicorn-prod")))))))
 
 (define (genenetwork3-runner-gexp genenetwork3-source profile)
