@@ -19,3 +19,31 @@ container. Restart it.
 #+BEGIN_SRC shell
 $ sudo systemctl restart genenetwork-development-container
 #+END_SRC
+
+* Virtuoso container for tux01 production
+
+The virtuoso container is run on /tux01/ production. It runs virtuoso
+alone.
+
+To build and install the container, you will need the
+guix-bioinformatics channel. Once guix-bioinformatics is pulled and
+available, on /tux01/, run
+#+begin_src shell
+  $ ./virtuoso-deploy.sh
+#+end_src
+
+/tux01/ is configured with a systemd service to run this
+container. Restart it.
+#+begin_src shell
+  $ sudo systemctl restart virtuoso-container
+#+end_src
+
+The default password of the virtuoso dba user is dba. Set a new
+password. Pay attention to the single versus double quoting.
+#+begin_src
+SQL> set password "dba" "new-password";
+#+end_src
+Disable the dav user.
+#+begin_src
+SQL> UPDATE ws.ws.sys_dav_user SET u_account_disabled=1 WHERE u_name='dav';
+#+end_src
