@@ -204,24 +204,36 @@ to be executed."
             (display (make-string 50 #\=))
             (newline)
             (force-output))
-          
+
+          (define (show-head-commit)
+            (hline)
+            (invoke "git" "log" "--max-count" "1")
+            (hline))
+
+          (invoke "git" "clone" "--depth" "1"
+                  "https://github.com/genenetwork/genenetwork3")
+          (with-directory-excursion "genenetwork3"
+            (show-head-commit))
           (invoke "git" "clone" "--depth" "1"
                   "--branch" #$(forge-project-repository-branch project)
-                  #$(forge-project-repository project)
-                  ".")
-          (hline)
-          (invoke "git" "log" "--max-count" "1")
-          (hline)
+                  #$(forge-project-repository project))
+          (with-directory-excursion "genenetwork2"
+            (show-head-commit))
           (setenv "SERVER_PORT" "8080")
+          ;; Use a profile with all dependencies except genenetwork3.
           (setenv "GN2_PROFILE"
                   #$(profile
                      (content (package->development-manifest genenetwork2))
                      (allow-collisions? #t)))
+          ;; Set GN3_PYTHONPATH to the latest genenetwork3.
+          (setenv "GN3_PYTHONPATH"
+                  (string-append (getcwd) "/genenetwork3"))
           (setenv "GN_PROXY_URL" "http://genenetwork.org/gn3-proxy/")
           (setenv "GN3_LOCAL_URL" (string-append "http://localhost:" (number->string #$%genenetwork3-port)))
           (setenv "GENENETWORK_FILES" #$%genotype-files)
           (setenv "HOME" "/tmp")
           (setenv "SQL_URI" "mysql://webqtlout:webqtlout@localhost/db_webqtl")
+          (chdir "genenetwork2")
           (apply invoke '#$test-command)))))
 
 (define (genenetwork2-project config)
