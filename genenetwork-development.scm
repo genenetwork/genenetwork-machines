@@ -409,7 +409,8 @@ command to be executed."
                          this-forge-laminar-job
                          genenetwork3-unit-tests
                          #:guix-daemon-uri %guix-daemon-uri))
-                   ;; If unit tests pass, redeploy genenetwork3.
+                   ;; If unit tests pass, redeploy genenetwork3 and
+                   ;; trigger genenetwork2 tests.
                    (after #~(begin
                               (use-modules (guix build utils))
                               #$(development-server-redeploy config)
@@ -421,7 +422,9 @@ command to be executed."
                                 ;; Setuid Programs".
                                 (invoke "/run/setuid-programs/sudo"
                                         #$(file-append shepherd "/bin/herd")
-                                        "restart" "genenetwork3")))))
+                                        "restart" "genenetwork3")
+                                (invoke #$(file-append shepherd "/bin/herd")
+                                        "queue" "genenetwork2")))))
                   (forge-laminar-job
                    (name "genenetwork3-pylint")
                    (run (derivation-job-gexp
