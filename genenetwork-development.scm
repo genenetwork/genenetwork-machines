@@ -290,7 +290,7 @@ describing genenetwork2."
                                                     (gnu system file-systems)))
       #~(make-forkexec-constructor/container
          (list #$(development-server-configuration-executable-path config)
-               "127.0.0.1" (number->string #$(development-server-configuration-port config)))
+               "127.0.0.1" #$(number->string (development-server-configuration-port config)))
          #:user "genenetwork"
          #:group "genenetwork"
          #:mappings (list (file-system-mapping
