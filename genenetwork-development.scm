@@ -249,7 +249,8 @@ to be executed."
                          this-forge-project
                          (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
                                "-c" "-m" "pytest")))
-                   ;; If unit tests pass, redeploy genenetwork2.
+                   ;; If unit tests pass, redeploy genenetwork2 and
+                   ;; trigger Mechanical Rob.
                    (after #~(begin
                               (use-modules (guix build utils))
                               #$(development-server-redeploy config)
