@@ -22,6 +22,7 @@
              ((gn packages genenetwork) #:select (genenetwork2 genenetwork3))
              ((gn packages quality-control) #:select (sbcl-qc))
              (gn services databases)
+             (gnu build linux-container)
              ((gnu packages admin) #:select (shepherd shadow))
              ((gnu packages base) #:select (gnu-make tar))
              ((gnu packages bash) #:select (bash))
@@ -46,9 +47,11 @@
              (gnu services databases)
              (gnu services shepherd)
              (gnu services web)
+             (gnu system file-systems)
              (guix build-system gnu)
              (guix channels)
              (guix git-download)
+             (guix least-authority)
              ((guix licenses) #:prefix license:)
              (guix modules)
              (guix packages)
@@ -284,30 +287,29 @@ describing genenetwork2."
    (provision '(genenetwork2))
    ;; FIXME: The genenetwork2 service should depend on redis.
    (requirement '(networking genenetwork3))
-   (modules '((gnu build shepherd)
-              (gnu system file-systems)))
-   (start
-    (with-imported-modules (source-module-closure '((gnu build shepherd)
-                                                    (gnu system file-systems)))
-      #~(make-forkexec-constructor/container
-         (list #$(development-server-configuration-executable-path config)
-               "127.0.0.1" #$(number->string (development-server-configuration-port config)))
-         #:user "genenetwork"
-         #:group "genenetwork"
-         #:mappings (list (file-system-mapping
-                           (source #$(development-server-configuration-executable-path config))
-                           (target source))
-                          (file-system-mapping
-                           (source #$%genotype-files)
-                           (target source))
-                          (file-system-mapping
-                           (source #$%xapian-db-path)
-                           (target source))
-                          (file-system-mapping
-                           (source "/run/mysqld/mysqld.sock")
-                           (target source)
-                           (writable? #t)))
-         #:log-file "/var/log/cd/genenetwork2.log")))
+   (start #~(make-forkexec-constructor
+             (list #$(least-authority-wrapper
+                      (development-server-configuration-executable-path config)
+                      #:name "genenetwork2-pola-wrapper"
+                      #:mappings (list (file-system-mapping
+                                        (source (development-server-configuration-executable-path config))
+                                        (target source))
+                                       (file-system-mapping
+                                        (source %genotype-files)
+                                        (target source))
+                                       (file-system-mapping
+                                        (source %xapian-db-path)
+                                        (target source))
+                                       (file-system-mapping
+                                        (source "/run/mysqld/mysqld.sock")
+                                        (target source)
+                                        (writable? #t))
+                                       %store-mapping)
+                      #:namespaces (delq 'net %namespaces))
+                   "127.0.0.1" #$(number->string (development-server-configuration-port config)))
+             #:user "genenetwork"
+             #:group "genenetwork"
+             #:log-file "/var/log/cd/genenetwork2.log"))
    (stop #~(make-kill-destructor))))
 
 (define %default-genenetwork2-configuration
@@ -446,24 +448,23 @@ command to be executed."
    (documentation "Run GeneNetwork 3.")
    (provision '(genenetwork3))
    (requirement '(networking))
-   (modules '((gnu build shepherd)
-              (gnu system file-systems)))
-   (start
-    (with-imported-modules (source-module-closure '((gnu build shepherd)
-                                                    (gnu system file-systems)))
-      #~(make-forkexec-constructor/container
-         (list #$(development-server-configuration-executable-path config)
-               "127.0.0.1" #$(number->string (development-server-configuration-port config)))
-         #:user "genenetwork"
-         #:group "genenetwork"
-         #:mappings (list (file-system-mapping
-                           (source #$(development-server-configuration-executable-path config))
-                           (target source))
-                          (file-system-mapping
-                           (source "/run/mysqld/mysqld.sock")
-                           (target source)
-                           (writable? #t)))
-         #:log-file "/var/log/cd/genenetwork3.log")))
+   (start #~(make-forkexec-constructor
+             (list #$(least-authority-wrapper
+                      (development-server-configuration-executable-path config)
+                      #:name "genenetwork3-pola-wrapper"
+                      #:mappings (list (file-system-mapping
+                                        (source (development-server-configuration-executable-path config))
+                                        (target source))
+                                       (file-system-mapping
+                                        (source "/run/mysqld/mysqld.sock")
+                                        (target source)
+                                        (writable? #t))
+                                       %store-mapping)
+                      #:namespaces (delq 'net %namespaces))
+                   "127.0.0.1" #$(number->string (development-server-configuration-port config)))
+             #:user "genenetwork"
+             #:group "genenetwork"
+             #:log-file "/var/log/cd/genenetwork3.log"))
    (stop #~(make-kill-destructor))))
 
 (define %default-genenetwork3-configuration
