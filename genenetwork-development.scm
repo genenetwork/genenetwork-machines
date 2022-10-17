@@ -60,6 +60,7 @@
              (guix store)
              (forge forge)
              (forge laminar)
+             (forge socket)
              (forge tissue)
              (forge utils)
              (forge webhook)
@@ -858,7 +859,9 @@ reverse proxy tissue."
                                      (laminar-template-gexp "https://issues.genenetwork.org"))))
                    (service webhook-service-type
                             (webhook-configuration
-                             (port %webhook-port)))
+                             (socket (forge-ip-socket
+                                      (ip "127.0.0.1")
+                                      (port %webhook-port)))))
                    (service redis-service-type)
                    (service virtuoso-service-type
                             (virtuoso-configuration
