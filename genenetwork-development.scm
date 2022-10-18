@@ -426,7 +426,7 @@ command to be executed."
                                 (invoke "/run/setuid-programs/sudo"
                                         #$(file-append shepherd "/bin/herd")
                                         "restart" "genenetwork3")
-                                (invoke #$(file-append shepherd "/bin/herd")
+                                (invoke #$(file-append laminar "/bin/laminarc")
                                         "queue" "genenetwork2")))))
                   (forge-laminar-job
                    (name "genenetwork3-pylint")
