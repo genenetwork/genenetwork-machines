@@ -659,7 +659,7 @@ command to be executed."
 (define dump-genenetwork-database-project
   (forge-project
    (name "dump-genenetwork-database")
-   (repository "https://git.genenetwork.org/arunisaac/dump-genenetwork-database")
+   (repository "https://github.com/genenetwork/dump-genenetwork-database")
    (ci-jobs (list (forge-laminar-job
                    (name "dump-genenetwork-database-tests")
                    (run (derivation-job-gexp
