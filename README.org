@@ -38,12 +38,9 @@ container. Restart it.
   $ sudo systemctl restart virtuoso-container
 #+end_src
 
-The default password of the virtuoso dba user is dba. Set a new
-password. Pay attention to the single versus double quoting.
-#+begin_src
-SQL> set password "dba" "new-password";
-#+end_src
-Disable the dav user.
-#+begin_src
-SQL> UPDATE ws.ws.sys_dav_user SET u_account_disabled=1 WHERE u_name='dav';
-#+end_src
+* Secure virtuoso authentication
+
+In containers containing virtuoso instances, it is important to secure
+authentication by changing default user passwords and disabling
+unnecessary users. See [[https://issues.genenetwork.org/topics/systems/virtuoso][virtuoso gemtext documentation]] on passwords for
+more details.
