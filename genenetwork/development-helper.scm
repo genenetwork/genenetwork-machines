@@ -103,13 +103,13 @@ with genenetwork3 dependencies."
           (mkdir-p #$output)))))
 
 (define (genenetwork2-runner-gexp genenetwork2-source profile gn3-port
-                                  genotype-files xapian-db-path)
+                                  genotype-files)
   "Return a G-expression that runs the genenetwork2 server for
 GENENETWORK2-SOURCE in PROFILE. GENENETWORK2-SOURCE is a checkout of
 the genenetwork2 source code. PROFILE is a profile with genenetwork2
 dependencies. GN3-PORT is the port on which a local instance of
 genenetwork3 is listening. GENOTYPE-FILES is the path to genotype
-files. XAPIAN-DB-PATH is the path to the xapian search index."
+files."
   (with-imported-modules '((guix build utils))
     (with-profile profile
       #~(begin
@@ -130,15 +130,15 @@ files. XAPIAN-DB-PATH is the path to the xapian search index."
              (setenv "SQL_URI" "mysql://webqtlout:webqtlout@localhost/db_webqtl")
              (setenv "HOME" "/tmp")
              (setenv "NO_REDIS" "no-redis")
-             (setenv "XAPIAN_DB_PATH" #$xapian-db-path)
 	     (setenv "RUST_BACKTRACE" "1")
              (invoke "sh" "bin/genenetwork2" "etc/default_settings.py" "-gunicorn-prod")))))))
 
-(define (genenetwork3-runner-gexp genenetwork3-source profile)
+(define (genenetwork3-runner-gexp genenetwork3-source config-file profile)
   "Return a G-expression that runs the genenetwork3 server for
 GENENETWORK3-SOURCE in PROFILE. GENENETWORK3-SOURCE is a checkout of
-the genenetwork3 source code. PROFILE is a profile with genenetwork3
-dependencies."
+the genenetwork3 source code. CONFIG-FILE is a file containing
+configuration settings for genenetwork3. PROFILE is a profile with
+genenetwork3 dependencies."
   (with-imported-modules '((guix build utils))
     (with-profile profile
       #~(begin
@@ -146,6 +146,8 @@ dependencies."
                        (ice-9 match))
           
           (chdir #$genenetwork3-source)
+          (setenv "GN3_CONF" #$config-file)
+          (setenv "HOME" "/tmp")
           (match (command-line)
             ((_ ip port)
              (invoke "gunicorn"

@@ -299,9 +299,6 @@ describing genenetwork2."
                                         (source %genotype-files)
                                         (target source))
                                        (file-system-mapping
-                                        (source %xapian-db-path)
-                                        (target source))
-                                       (file-system-mapping
                                         (source "/run/mysqld/mysqld.sock")
                                         (target source)
                                         (writable? #t))
@@ -328,8 +325,7 @@ describing genenetwork2."
                      (content (package->development-manifest genenetwork2))
                      (allow-collisions? #t))
                   #$%genenetwork3-port
-                  #$%genotype-files
-                  #$%xapian-db-path))))))
+                  #$%genotype-files))))))
 
 (define %genenetwork-accounts
   (list (user-group
@@ -460,6 +456,9 @@ command to be executed."
                                         (source "/run/mysqld/mysqld.sock")
                                         (target source)
                                         (writable? #t))
+                                       (file-system-mapping
+                                        (source %xapian-db-path)
+                                        (target source))
                                        %store-mapping)
                       #:namespaces (delq 'net %namespaces))
                    "127.0.0.1" #$(number->string (development-server-configuration-port config)))
@@ -479,6 +478,8 @@ command to be executed."
              #~(lambda (latest-gn3-source)
                  ((@@ (genenetwork development-helper) genenetwork3-runner-gexp)
                   latest-gn3-source
+                  #$(mixed-text-file "gn3.conf"
+                                     "XAPIAN_DB_PATH=\"" %xapian-db-path "\"\n")
                   #$(profile
                      (content (manifest-cons gunicorn
                                              (package->development-manifest genenetwork3)))
