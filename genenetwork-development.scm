@@ -92,272 +92,76 @@ be imported into G-expressions."
     (((or 'forge 'genenetwork) _ ...) #t)
     (name (guix-module-name? name))))
 
+(define-record-type* <genenetwork-configuration>
+  genenetwork-configuration make-genenetwork-configuration
+  genenetwork-configuration?
+  (gn2-repository genenetwork-configuration-gn2-repository
+                  (default "https://github.com/genenetwork/genenetwork2"))
+  (gn3-repository genenetwork-configuration-gn3-repository
+                  (default "https://github.com/genenetwork/genenetwork3"))
+  (gn2-port genenetwork-configuration-gn2-port
+            (default 8082))
+  (gn3-port genenetwork-configuration-gn3-port
+            (default 8083))
+  (genotype-files genenetwork-configuration-genotype-files
+                  (default "/var/genenetwork/genotype-files"))
+  (xapian-db-path genenetwork-xapian-db-path
+                  (default "/var/genenetwork/xapian")))
+
 
 ;;;
-;;; Development server configuration
+;;; genenetwork
 ;;;
 
-;; A development server is a server that is automatically redeployed
-;; on every commit to its git repository. This is used by both the
-;; genenetwork2 and the genenetwork3 development servers. Here, we
-;; abstract out the details.
-
-(define-record-type* <development-server-configuration>
-  development-server-configuration make-development-server-configuration
-  development-server-configuration?
-  (name development-server-configuration-name)
-  (git-repository development-server-configuration-git-repository)
-  (git-branch development-server-configuration-git-branch)
-  (executable-path development-server-configuration-executable-path)
-  (runner development-server-configuration-runner)
-  (port development-server-configuration-port
-        (default 8080)))
-
-(define (development-server-redeploy config)
-  "Return a G-expression that provides a function redeploy which
-redeploys the development server specified by CONFIG, a
-<development-server-configuration> object."
-  (with-imported-modules (source-module-closure '((genenetwork development-helper)
-                                                  (forge build git))
-                                                #:select? import-module?)
-    (with-extensions (list guile-gcrypt guile-zlib)
-      (with-packages (list git-minimal nss-certs)
+(define (genenetwork2-tests config test-command)
+  "Return a G-expression that runs TEST-COMMAND for genenetwork2
+described by CONFIG, a <genenetwork-configuration>
+object. TEST-COMMAND is a list of strings specifying the command to be
+executed."
+  (match-record config <genenetwork-configuration>
+    (gn3-port genotype-files)
+    (with-imported-modules '((guix build utils))
+      (with-packages (list bash coreutils git-minimal nss-certs)
         #~(begin
-            (use-modules (genenetwork development-helper)
-                         (forge build git)
-                         (guix derivations)
-                         (guix gexp)
-                         (guix monads)
-                         (guix store)
-                         (guix utils)
-                         (rnrs exceptions))
-            
-            (define (redeploy)
-              (parameterize ((%daemon-socket-uri #$%guix-daemon-uri))
-                (switch-symlinks
-                 #$(development-server-configuration-executable-path config)
-                 (with-store store
-                   (run-with-store store
-                     (mlet* %store-monad ((latest-source
-                                           (latest-git-checkout
-                                            #$(string-append (development-server-configuration-name config)
-                                                             "-checkout")
-                                            #$(development-server-configuration-git-repository config)
-                                            #:branch #$(development-server-configuration-git-branch config)))
-                                          (runner-drv
-                                           (gexp->script
-                                            #$(string-append (development-server-configuration-name config)
-                                                             "-runner")
-                                            (#$(development-server-configuration-runner config)
-                                             latest-source)
-                                            #:guile (read-derivation-from-file
-                                                     #$(raw-derivation-file
-                                                        (with-store store
-                                                          (package-derivation store guile-3.0)))))))
-                       (mbegin %store-monad
-                         (built-derivations (list runner-drv))
-                         (return (derivation->output-path runner-drv))))))))))))))
+            (use-modules (guix build utils))
 
-(define (development-server-activation config)
-  "Return a G-expression that runs the development server specified by
-CONFIG, a <development-server-configuration> object, on startup."
-  (let ((executable-path (development-server-configuration-executable-path config)))
-    #~(begin
-        (use-modules (guix build utils))
-      
-        (mkdir-p #$(dirname executable-path))
-        (chown #$(dirname executable-path)
-               (passwd:uid (getpw "laminar"))
-               (passwd:gid (getpw "laminar")))
-        #$(development-server-redeploy config)
-        (redeploy))))
+            (define (hline)
+              "Print a horizontal line 50 '=' characters long."
+              (display (make-string 50 #\=))
+              (newline)
+              (force-output))
 
-
-;;;
-;;; genenetwork2
-;;;
+            (define (show-head-commit)
+              (hline)
+              (invoke "git" "log" "--max-count" "1")
+              (hline))
 
-;; Path to genotype files required by genenetwork2
-(define %genotype-files
-  "/export/data/genenetwork/genotype_files")
-
-;; Path to the xapian search index used by genenetwork2
-(define %xapian-db-path
-  "/export/data/genenetwork/xapian")
-
-;; Port on which genenetwork2 is listening
-(define %genenetwork2-port
-  9092)
-
-;; Port on which genenetwork3 is listening
-(define %genenetwork3-port
-  9093)
-
-(define (genenetwork2-tests project test-command)
-  "Return a G-expression that runs TEST-COMMAND with genenetwork2
-source code. PROJECT is a <forge-project> object describing
-genenetwork2. TEST-COMMAND is a list of strings specifying the command
-to be executed."
-  (with-imported-modules '((guix build utils))
-    (with-packages (list bash coreutils git-minimal nss-certs)
-      #~(begin
-          (use-modules (guix build utils))
-
-          (define (hline)
-            "Print a horizontal line 50 '=' characters long."
-            (display (make-string 50 #\=))
-            (newline)
-            (force-output))
-
-          (define (show-head-commit)
-            (hline)
-            (invoke "git" "log" "--max-count" "1")
-            (hline))
-
-          (invoke "git" "clone" "--depth" "1"
-                  "https://github.com/genenetwork/genenetwork3")
-          (with-directory-excursion "genenetwork3"
-            (show-head-commit))
-          (invoke "git" "clone" "--depth" "1"
-                  "--branch" #$(forge-project-repository-branch project)
-                  #$(forge-project-repository project))
-          (with-directory-excursion "genenetwork2"
-            (show-head-commit))
-          (setenv "SERVER_PORT" "8080")
-          ;; Use a profile with all dependencies except genenetwork3.
-          (setenv "GN2_PROFILE"
-                  #$(profile
-                     (content (package->development-manifest genenetwork2))
-                     (allow-collisions? #t)))
-          ;; Set GN3_PYTHONPATH to the latest genenetwork3.
-          (setenv "GN3_PYTHONPATH"
-                  (string-append (getcwd) "/genenetwork3"))
-          (setenv "GN_PROXY_URL" "http://genenetwork.org/gn3-proxy/")
-          (setenv "GN3_LOCAL_URL" (string-append "http://localhost:" (number->string #$%genenetwork3-port)))
-          (setenv "GENENETWORK_FILES" #$%genotype-files)
-          (setenv "HOME" "/tmp")
-          (setenv "SQL_URI" "mysql://webqtlout:webqtlout@localhost/db_webqtl")
-          (chdir "genenetwork2")
-          (apply invoke '#$test-command)))))
-
-(define (genenetwork2-project config)
-  "Return a forge project describing genenetwork2. CONFIG is a
-<development-server-configuration> object describing genenetwork2."
-  (forge-project
-   (name "genenetwork2")
-   (repository (development-server-configuration-git-repository config))
-   (repository-branch (development-server-configuration-git-branch config))
-   (ci-jobs (list (forge-laminar-job
-                   (name "genenetwork2")
-                   (run (genenetwork2-tests
-                         this-forge-project
-                         (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
-                               "-c" "-m" "pytest")))
-                   ;; If unit tests pass, redeploy genenetwork2 and
-                   ;; trigger Mechanical Rob.
-                   (after #~(begin
-                              (use-modules (guix build utils))
-                              #$(development-server-redeploy config)
-                              (when (string=? (getenv "RESULT") "success")
-                                (redeploy)
-                                ;; We cannot refer to sudo in the
-                                ;; store since that sudo does not have
-                                ;; the setuid bit set. See "(guix)
-                                ;; Setuid Programs".
-                                (invoke "/run/setuid-programs/sudo"
-                                        #$(file-append shepherd "/bin/herd")
-                                        "restart" "genenetwork2")
-                                (invoke #$(file-append laminar "/bin/laminarc")
-                                        "queue" "genenetwork2-mechanical-rob")))))
-                  (forge-laminar-job
-                   (name "genenetwork2-mechanical-rob")
-                   (run (genenetwork2-tests
-                         this-forge-project
-                         (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
-                               "-c" "../test/requests/test-website.py"
-                               "--all" (string-append "http://localhost:" (number->string %genenetwork2-port)))))
-                   (trigger? #f))))
-   (ci-jobs-trigger 'webhook)))
-
-(define (genenetwork2-shepherd-service config)
-  "Return a shepherd service to run the genenetwork2 development
-server. CONFIG is a <development-server-configuration> object
-describing genenetwork2."
-  (shepherd-service
-   (documentation "Run GeneNetwork 2 development server.")
-   (provision '(genenetwork2))
-   ;; FIXME: The genenetwork2 service should depend on redis.
-   (requirement '(networking genenetwork3))
-   (start #~(make-forkexec-constructor
-             (list #$(least-authority-wrapper
-                      (development-server-configuration-executable-path config)
-                      #:name "genenetwork2-pola-wrapper"
-                      #:mappings (list (file-system-mapping
-                                        (source (development-server-configuration-executable-path config))
-                                        (target source))
-                                       (file-system-mapping
-                                        (source %genotype-files)
-                                        (target source))
-                                       (file-system-mapping
-                                        (source "/run/mysqld/mysqld.sock")
-                                        (target source)
-                                        (writable? #t))
-                                       %store-mapping)
-                      #:namespaces (delq 'net %namespaces))
-                   "127.0.0.1" #$(number->string (development-server-configuration-port config)))
-             #:user "genenetwork"
-             #:group "genenetwork"
-             #:log-file "/var/log/cd/genenetwork2.log"))
-   (stop #~(make-kill-destructor))))
-
-(define %default-genenetwork2-configuration
-  (development-server-configuration
-   (name "genenetwork2")
-   (git-repository "https://github.com/genenetwork/genenetwork2")
-   (git-branch "testing")
-   (executable-path "/laminar/bin/genenetwork2")
-   (runner (with-imported-modules (source-module-closure '((genenetwork development-helper))
-                                                         #:select? import-module?)
-             #~(lambda (latest-gn2-source)
-                 ((@@ (genenetwork development-helper) genenetwork2-runner-gexp)
-                  latest-gn2-source
-                  #$(profile
-                     (content (package->development-manifest genenetwork2))
-                     (allow-collisions? #t))
-                  #$%genenetwork3-port
-                  #$%genotype-files))))))
-
-(define %genenetwork-accounts
-  (list (user-group
-         (name "genenetwork")
-         (system? #t))
-        (user-account
-         (name "genenetwork")
-         (group "genenetwork")
-         (system? #t)
-         (comment "GeneNetwork user")
-         (home-directory "/var/empty")
-         (shell (file-append shadow "/sbin/nologin")))))
-
-(define genenetwork2-service-type
-  (service-type
-   (name 'genenetwork2)
-   (description "Run GeneNetwork 2 development server and CI.")
-   (extensions
-    (list (service-extension account-service-type
-                             (const %genenetwork-accounts))
-          (service-extension activation-service-type
-                             development-server-activation)
-          (service-extension shepherd-root-service-type
-                             (compose list genenetwork2-shepherd-service))
-          (service-extension forge-service-type
-                             (compose list genenetwork2-project))))
-   (default-value %default-genenetwork2-configuration)))
-
-
-;;;
-;;; genenetwork3
-;;;
+            (invoke "git" "clone" "--depth" "1" gn3-repository)
+            (with-directory-excursion "genenetwork3"
+              (show-head-commit))
+            (invoke "git" "clone" "--depth" "1" gn2-repository)
+            (with-directory-excursion "genenetwork2"
+              (show-head-commit))
+            ;; This is a dummy SERVER_PORT to placate
+            ;; bin/genenetwork2. TODO: Fix bin/genenetwork2 so that
+            ;; this is not needed.
+            (setenv "SERVER_PORT" "8080")
+            ;; Use a profile with all dependencies except
+            ;; genenetwork3.
+            (setenv "GN2_PROFILE"
+                    #$(profile
+                       (content (package->development-manifest genenetwork2))
+                       (allow-collisions? #t)))
+            ;; Set GN3_PYTHONPATH to the latest genenetwork3.
+            (setenv "GN3_PYTHONPATH"
+                    (string-append (getcwd) "/genenetwork3"))
+            (setenv "GN_PROXY_URL" "http://genenetwork.org/gn3-proxy/")
+            (setenv "GN3_LOCAL_URL" (string-append "http://localhost:" (number->string #$gn3-port)))
+            (setenv "GENENETWORK_FILES" #$genotype-files)
+            (setenv "HOME" "/tmp")
+            (setenv "SQL_URI" "mysql://webqtlout:webqtlout@localhost/db_webqtl")
+            (chdir "genenetwork2")
+            (apply invoke '#$test-command))))))
 
 (define (genenetwork3-tests tests-command manifest)
   "Return a G-expression running TESTS-COMMAND in a profile described
@@ -396,109 +200,251 @@ command to be executed."
                       (manifest-cons python-mypy
                                      (package->development-manifest genenetwork3))))
 
-(define (genenetwork3-project config)
-  (forge-project
-   (name "genenetwork3")
-   (repository (development-server-configuration-git-repository config))
-   (repository-branch (development-server-configuration-git-branch config))
-   (ci-jobs (list (forge-laminar-job
-                   (name "genenetwork3")
-                   (run (derivation-job-gexp
-                         this-forge-project
-                         this-forge-laminar-job
-                         genenetwork3-unit-tests
-                         #:guix-daemon-uri %guix-daemon-uri))
-                   ;; If unit tests pass, redeploy genenetwork3 and
-                   ;; trigger genenetwork2 tests.
-                   (after #~(begin
-                              (use-modules (guix build utils))
-                              #$(development-server-redeploy config)
-                              (when (string=? (getenv "RESULT") "success")
-                                (redeploy)
-                                ;; We cannot refer to sudo in the
-                                ;; store since that sudo does not have
-                                ;; the setuid bit set. See "(guix)
-                                ;; Setuid Programs".
-                                (invoke "/run/setuid-programs/sudo"
-                                        #$(file-append shepherd "/bin/herd")
-                                        "restart" "genenetwork3")
-                                (invoke #$(file-append laminar "/bin/laminarc")
-                                        "queue" "genenetwork2")))))
-                  (forge-laminar-job
-                   (name "genenetwork3-pylint")
-                   (run (derivation-job-gexp
-                         this-forge-project
-                         this-forge-laminar-job
-                         genenetwork3-pylint
-                         #:guix-daemon-uri %guix-daemon-uri)))
-                  (forge-laminar-job
-                   (name "genenetwork3-mypy")
-                   (run (derivation-job-gexp
-                         this-forge-project
-                         this-forge-laminar-job
-                         genenetwork3-mypy
-                         #:guix-daemon-uri %guix-daemon-uri)))))
-   (ci-jobs-trigger 'webhook)))
+(define (genenetwork-projects config)
+  "Return forge projects for genenetwork described by CONFIG, a
+<genenetwork-configuration> object."
+  (match-record config <genenetwork-configuration>
+    (gn2-repository gn3-repository gn2-port)
+    (list (forge-project
+           (name "genenetwork2")
+           (repository gn2-repository)
+           (ci-jobs (list (forge-laminar-job
+                           (name "genenetwork2")
+                           (run (genenetwork2-tests
+                                 config
+                                 (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
+                                       "-c" "-m" "pytest")))
+                           ;; If unit tests pass, redeploy genenetwork2 and
+                           ;; trigger Mechanical Rob.
+                           (after #~(begin
+                                      (use-modules (guix build utils))
+                                      (when (string=? (getenv "RESULT") "success")
+                                        ;; We cannot refer to sudo in the
+                                        ;; store since that sudo does not have
+                                        ;; the setuid bit set. See "(guix)
+                                        ;; Setuid Programs".
+                                        (invoke "/run/setuid-programs/sudo"
+                                                #$(file-append shepherd "/bin/herd")
+                                                "restart" "genenetwork2")
+                                        (invoke #$(file-append laminar "/bin/laminarc")
+                                                "queue" "genenetwork2-mechanical-rob")))))
+                          (forge-laminar-job
+                           (name "genenetwork2-mechanical-rob")
+                           (run (genenetwork2-tests
+                                 config
+                                 (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
+                                       "-c" "../test/requests/test-website.py"
+                                       "--all" (string-append "http://localhost:" (number->string gn2-port)))))
+                           (trigger? #f))))
+           (ci-jobs-trigger 'webhook))
+          (forge-project
+           (name "genenetwork3")
+           (repository gn3-repository)
+           (ci-jobs (list (forge-laminar-job
+                           (name "genenetwork3")
+                           (run (derivation-job-gexp
+                                 this-forge-project
+                                 this-forge-laminar-job
+                                 genenetwork3-unit-tests
+                                 #:guix-daemon-uri %guix-daemon-uri))
+                           ;; If unit tests pass, redeploy genenetwork3 and
+                           ;; trigger genenetwork2 tests.
+                           (after #~(begin
+                                      (use-modules (guix build utils))
+                                      (when (string=? (getenv "RESULT") "success")
+                                        ;; We cannot refer to sudo in the
+                                        ;; store since that sudo does not have
+                                        ;; the setuid bit set. See "(guix)
+                                        ;; Setuid Programs".
+                                        (invoke "/run/setuid-programs/sudo"
+                                                #$(file-append shepherd "/bin/herd")
+                                                "restart" "genenetwork3")
+                                        (invoke #$(file-append laminar "/bin/laminarc")
+                                                "queue" "genenetwork2")))))
+                          (forge-laminar-job
+                           (name "genenetwork3-pylint")
+                           (run (derivation-job-gexp
+                                 this-forge-project
+                                 this-forge-laminar-job
+                                 genenetwork3-pylint
+                                 #:guix-daemon-uri %guix-daemon-uri)))
+                          (forge-laminar-job
+                           (name "genenetwork3-mypy")
+                           (run (derivation-job-gexp
+                                 this-forge-project
+                                 this-forge-laminar-job
+                                 genenetwork3-mypy
+                                 #:guix-daemon-uri %guix-daemon-uri)))))
+           (ci-jobs-trigger 'webhook)))))
 
-(define (genenetwork3-shepherd-service config)
-  (shepherd-service
-   (documentation "Run GeneNetwork 3.")
-   (provision '(genenetwork3))
-   (requirement '(networking))
-   (start #~(make-forkexec-constructor
-             (list #$(least-authority-wrapper
-                      (development-server-configuration-executable-path config)
-                      #:name "genenetwork3-pola-wrapper"
-                      #:mappings (list (file-system-mapping
-                                        (source (development-server-configuration-executable-path config))
-                                        (target source))
-                                       (file-system-mapping
-                                        (source "/run/mysqld/mysqld.sock")
-                                        (target source)
-                                        (writable? #t))
-                                       (file-system-mapping
-                                        (source %xapian-db-path)
-                                        (target source))
-                                       %store-mapping)
-                      #:namespaces (delq 'net %namespaces))
-                   "127.0.0.1" #$(number->string (development-server-configuration-port config)))
-             #:user "genenetwork"
-             #:group "genenetwork"
-             #:log-file "/var/log/cd/genenetwork3.log"))
-   (stop #~(make-kill-destructor))))
+(define (genenetwork2-cd-gexp config)
+  "Return a G-expression that runs the latest genenetwork2 development
+server described by CONFIG, a <genenetwork-configuration> object."
+  (match-record config <genenetwork-configuration>
+    (gn2-repository gn3-repository gn2-port gn3-port genotype-files)
+    (with-packages (list coreutils git-minimal gunicorn nss-certs)
+      (with-imported-modules '((guix build utils))
+        #~(begin
+            (use-modules (guix build utils)
+                         (ice-9 match))
 
-(define %default-genenetwork3-configuration
-  (development-server-configuration
-   (name "genenetwork3")
-   (git-repository "https://github.com/genenetwork/genenetwork3")
-   (git-branch "main")
-   (executable-path "/laminar/bin/genenetwork3")
-   (runner (with-imported-modules (source-module-closure '((genenetwork development-helper))
-                                                         #:select? import-module?)
-             #~(lambda (latest-gn3-source)
-                 ((@@ (genenetwork development-helper) genenetwork3-runner-gexp)
-                  latest-gn3-source
-                  #$(mixed-text-file "gn3.conf"
-                                     "XAPIAN_DB_PATH=\"" %xapian-db-path "\"\n")
-                  #$(profile
-                     (content (manifest-cons gunicorn
-                                             (package->development-manifest genenetwork3)))
-                     (allow-collisions? #t))))))))
+            (define (hline)
+              "Print a horizontal line 50 '=' characters long."
+              (display (make-string 50 #\=))
+              (newline)
+              (force-output))
 
-(define genenetwork3-service-type
+            (define (show-head-commit)
+              (hline)
+              (invoke "git" "log" "--max-count" "1")
+              (hline))
+
+            ;; Clone the latest genenetwork2 and genenetwork3
+            ;; repositories.
+            (invoke "git" "clone" "--depth" "1" #$gn2-repository)
+            (with-directory-excursion "genenetwork2"
+              (show-head-commit))
+            (invoke "git" "clone" "--depth" "1" #$gn3-repository)
+            (with-directory-excursion "genenetwork3"
+              (show-head-commit))
+
+            ;; Override the genenetwork3 used by genenetwork2.
+            (setenv "GN3_PYTHONPATH"
+                    (string-append (getcwd) "/genenetwork3"))
+            ;; Set other environment variables required by
+            ;; genenetwork2.
+            (setenv "SERVER_PORT" #$(number->string gn2-port))
+            (setenv "GN2_PROFILE" #$(profile
+                                     (content (package->development-manifest genenetwork2))
+                                     (allow-collisions? #t)))
+            (setenv "GN_PROXY_URL" "http://genenetwork.org/gn3-proxy/")
+            (setenv "GN_SERVER_URL" "/api3")
+            (setenv "GN3_LOCAL_URL"
+                    #$(string-append "http://localhost:"
+                                     (number->string gn3-port)))
+            (setenv "GENENETWORK_FILES" #$genotype-files)
+            (setenv "SQL_URI" "mysql://webqtlout:webqtlout@localhost/db_webqtl")
+            (setenv "HOME" "/tmp")
+            (setenv "NO_REDIS" "no-redis")
+	    (setenv "RUST_BACKTRACE" "1")
+
+            ;; Start genenetwork2.
+            (with-directory-excursion "genenetwork2"
+              (invoke #$(file-append bash "/bin/sh")
+                      "bin/genenetwork2" "etc/default_settings.py" "-gunicorn-prod")))))))
+
+(define (genenetwork3-cd-gexp config)
+  "Return a G-expression that runs the latest genenetwork3 development
+server described by CONFIG, a <genenetwork-configuration> object."
+  (match-record config <genenetwork-configuration>
+    (gn3-repository gn3-port xapian-db-path)
+    (with-manifest (package->development-manifest genenetwork3)
+      (with-packages (list git-minimal nss-certs)
+        (with-imported-modules '((guix build utils))
+          #~(begin
+              (use-modules (guix build utils)
+                           (ice-9 match))
+
+              (define (hline)
+                "Print a horizontal line 50 '=' characters long."
+                (display (make-string 50 #\=))
+                (newline)
+                (force-output))
+
+              (define (show-head-commit)
+                (hline)
+                (invoke "git" "log" "--max-count" "1")
+                (hline))
+
+              ;; Clone the latest genenetwork3 repository.
+              (invoke "git" "clone" "--depth" "1" #$gn3-repository)
+              ;; Configure genenetwork3.
+              (setenv "GN3_CONF"
+                      #$(mixed-text-file "gn3.conf"
+                                         "XAPIAN_DB_PATH=\"" xapian-db-path "\"\n"))
+              (setenv "HOME" "/tmp")
+              ;; Run genenetwork3.
+              (with-directory-excursion "genenetwork3"
+                (show-head-commit)
+                (invoke #$(file-append gunicorn "/bin/gunicorn")
+                        "-b" #$(string-append "localhost:" (number->string gn3-port))
+                        "gn3.app:create_app()"))))))))
+
+(define (genenetwork-shepherd-services config)
+  "Return shepherd services to run the genenetwork development server
+described by CONFIG, a <genenetwork-configuration> object."
+  (match-record config <genenetwork-configuration>
+    (gn2-port gn3-port genotype-files xapian-db-path)
+    (list (shepherd-service
+           (documentation "Run GeneNetwork 2 development server.")
+           (provision '(genenetwork2))
+           ;; FIXME: The genenetwork2 service should depend on redis.
+           (requirement '(networking genenetwork3))
+           (start #~(make-forkexec-constructor
+                     (list #$(least-authority-wrapper
+                              (program-file "genenetwork2"
+                                            (genenetwork2-cd-gexp config))
+                              #:name "genenetwork2-pola-wrapper"
+                              #:mappings (list (file-system-mapping
+                                                (source genotype-files)
+                                                (target source))
+                                               (file-system-mapping
+                                                (source "/run/mysqld/mysqld.sock")
+                                                (target source)
+                                                (writable? #t)))
+                              #:namespaces (delq 'net %namespaces))
+                           "127.0.0.1" #$(number->string gn2-port))
+                     #:user "genenetwork"
+                     #:group "genenetwork"
+                     #:log-file "/var/log/cd/genenetwork2.log"))
+           (stop #~(make-kill-destructor)))
+          (shepherd-service
+           (documentation "Run GeneNetwork 3 development server.")
+           (provision '(genenetwork3))
+           (requirement '(networking))
+           (start #~(make-forkexec-constructor
+                     (list #$(least-authority-wrapper
+                              (program-file "genenetwork3"
+                                            (genenetwork3-cd-gexp config))
+                              #:name "genenetwork3-pola-wrapper"
+                              #:mappings (list (file-system-mapping
+                                                (source "/run/mysqld/mysqld.sock")
+                                                (target source)
+                                                (writable? #t))
+                                               (file-system-mapping
+                                                (source xapian-db-path)
+                                                (target source)))
+                              #:namespaces (delq 'net %namespaces))
+                           "127.0.0.1" #$(number->string gn3-port))
+                     #:user "genenetwork"
+                     #:group "genenetwork"
+                     #:log-file "/var/log/cd/genenetwork3.log"))
+           (stop #~(make-kill-destructor))))))
+
+(define %genenetwork-accounts
+  (list (user-group
+         (name "genenetwork")
+         (system? #t))
+        (user-account
+         (name "genenetwork")
+         (group "genenetwork")
+         (system? #t)
+         (comment "GeneNetwork user")
+         (home-directory "/var/empty")
+         (shell (file-append shadow "/sbin/nologin")))))
+
+(define genenetwork-service-type
   (service-type
-   (name 'genenetwork3)
-   (description "Run GeneNetwork 3.")
+   (name 'genenetwork)
+   (description "Run GeneNetwork development servers and CI.")
    (extensions
     (list (service-extension account-service-type
                              (const %genenetwork-accounts))
-          (service-extension activation-service-type
-                             development-server-activation)
           (service-extension shepherd-root-service-type
-                             (compose list genenetwork3-shepherd-service))
+                             genenetwork-shepherd-services)
           (service-extension forge-service-type
-                             (compose list genenetwork3-project))))
-   (default-value %default-genenetwork3-configuration)))
+                             genenetwork-projects)))
+   (default-value (genenetwork-configuration))))
 
 
 ;;;
@@ -775,10 +721,6 @@ on."
                                       (number->string gn3-port) ";")
                        "proxy_set_header Host $host;")))))))
 
-;; Port on which webhook is listening
-(define %webhook-port
-  9091)
-
 (define (laminar-reverse-proxy-server-block listen laminar-bind-http webhook-port published-channel-names)
   "Return an <nginx-server-configuration> object to reverse proxy
 laminar. The nginx server will listen on LISTEN and reverse proxy to
@@ -825,6 +767,13 @@ reverse proxy tissue."
            (body (list "proxy_pass http://unix:/var/run/tissue/socket:;"
                        "proxy_set_header Host $host;")))))))
 
+;; Port on which webhook is listening
+(define %webhook-port 9091)
+;; Port on which genenetwork2 is listening
+(define %genenetwork2-port 9092)
+;; Port on which genenetwork3 is listening
+(define %genenetwork3-port 9093)
+
 (operating-system
   (host-name "genenetwork-development")
   (timezone "UTC")
@@ -868,14 +817,12 @@ reverse proxy tissue."
                             (virtuoso-configuration
                              (server-port 8891)
                              (http-server-port 8892)))
-                   (service genenetwork2-service-type
-                            (development-server-configuration
-                             (inherit %default-genenetwork2-configuration)
-                             (port %genenetwork2-port)))
-                   (service genenetwork3-service-type
-                            (development-server-configuration
-                             (inherit %default-genenetwork3-configuration)
-                             (port %genenetwork3-port)))
+                   (service genenetwork-service-type
+                            (genenetwork-configuration
+                             (gn2-port %genenetwork2-port)
+                             (gn3-port %genenetwork3-port)
+                             (genotype-files "/export/data/genenetwork/genotype_files")
+                             (xapian-db-path "/export/data/genenetwork/xapian")))
                    (simple-service 'set-dump-genenetwork-database-export-directory-permissions
                                    activation-service-type
                                    (with-imported-modules '((guix build utils))
