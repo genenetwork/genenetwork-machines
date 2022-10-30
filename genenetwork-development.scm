@@ -119,7 +119,7 @@ described by CONFIG, a <genenetwork-configuration>
 object. TEST-COMMAND is a list of strings specifying the command to be
 executed."
   (match-record config <genenetwork-configuration>
-    (gn3-port genotype-files)
+    (gn2-repository gn3-repository gn3-port genotype-files)
     (with-imported-modules '((guix build utils))
       (with-packages (list bash coreutils git-minimal nss-certs)
         #~(begin
@@ -136,10 +136,10 @@ executed."
               (invoke "git" "log" "--max-count" "1")
               (hline))
 
-            (invoke "git" "clone" "--depth" "1" gn3-repository)
+            (invoke "git" "clone" "--depth" "1" #$gn3-repository)
             (with-directory-excursion "genenetwork3"
               (show-head-commit))
-            (invoke "git" "clone" "--depth" "1" gn2-repository)
+            (invoke "git" "clone" "--depth" "1" #$gn2-repository)
             (with-directory-excursion "genenetwork2"
               (show-head-commit))
             ;; This is a dummy SERVER_PORT to placate
