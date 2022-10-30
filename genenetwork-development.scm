@@ -586,7 +586,8 @@ described by CONFIG, a <genenetwork-configuration> object."
                     dump-directory)
             ;; Import GeneRIF into RDF.
             (invoke "./pre-inst-env" "./import-generif.scm"
-                    (string-append dump-directory "/generifs_basic.gz")
+                    (string-append #$%dump-genenetwork-database-export-directory
+                                   "/generifs_basic.gz")
                     dump-directory)
             ;; Validate dumped RDF, sending the error output to
             ;; oblivion because we don't want to print out potentially
