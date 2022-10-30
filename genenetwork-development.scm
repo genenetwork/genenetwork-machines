@@ -216,18 +216,19 @@ command to be executed."
                                        "-c" "-m" "pytest")))
                            ;; If unit tests pass, redeploy genenetwork2 and
                            ;; trigger Mechanical Rob.
-                           (after #~(begin
-                                      (use-modules (guix build utils))
-                                      (when (string=? (getenv "RESULT") "success")
-                                        ;; We cannot refer to sudo in the
-                                        ;; store since that sudo does not have
-                                        ;; the setuid bit set. See "(guix)
-                                        ;; Setuid Programs".
-                                        (invoke "/run/setuid-programs/sudo"
-                                                #$(file-append shepherd "/bin/herd")
-                                                "restart" "genenetwork2")
-                                        (invoke #$(file-append laminar "/bin/laminarc")
-                                                "queue" "genenetwork2-mechanical-rob")))))
+                           (after (with-imported-modules '((guix build utils))
+                                    #~(begin
+                                        (use-modules (guix build utils))
+                                        (when (string=? (getenv "RESULT") "success")
+                                          ;; We cannot refer to sudo in the
+                                          ;; store since that sudo does not have
+                                          ;; the setuid bit set. See "(guix)
+                                          ;; Setuid Programs".
+                                          (invoke "/run/setuid-programs/sudo"
+                                                  #$(file-append shepherd "/bin/herd")
+                                                  "restart" "genenetwork2")
+                                          (invoke #$(file-append laminar "/bin/laminarc")
+                                                  "queue" "genenetwork2-mechanical-rob"))))))
                           (forge-laminar-job
                            (name "genenetwork2-mechanical-rob")
                            (run (genenetwork2-tests
@@ -249,18 +250,19 @@ command to be executed."
                                  #:guix-daemon-uri %guix-daemon-uri))
                            ;; If unit tests pass, redeploy genenetwork3 and
                            ;; trigger genenetwork2 tests.
-                           (after #~(begin
-                                      (use-modules (guix build utils))
-                                      (when (string=? (getenv "RESULT") "success")
-                                        ;; We cannot refer to sudo in the
-                                        ;; store since that sudo does not have
-                                        ;; the setuid bit set. See "(guix)
-                                        ;; Setuid Programs".
-                                        (invoke "/run/setuid-programs/sudo"
-                                                #$(file-append shepherd "/bin/herd")
-                                                "restart" "genenetwork3")
-                                        (invoke #$(file-append laminar "/bin/laminarc")
-                                                "queue" "genenetwork2")))))
+                           (after (with-imported-modules '((guix build utils))
+                                    #~(begin
+                                        (use-modules (guix build utils))
+                                        (when (string=? (getenv "RESULT") "success")
+                                          ;; We cannot refer to sudo in the
+                                          ;; store since that sudo does not have
+                                          ;; the setuid bit set. See "(guix)
+                                          ;; Setuid Programs".
+                                          (invoke "/run/setuid-programs/sudo"
+                                                  #$(file-append shepherd "/bin/herd")
+                                                  "restart" "genenetwork3")
+                                          (invoke #$(file-append laminar "/bin/laminarc")
+                                                  "queue" "genenetwork2"))))))
                           (forge-laminar-job
                            (name "genenetwork3-pylint")
                            (run (derivation-job-gexp
