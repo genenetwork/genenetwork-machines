@@ -562,7 +562,7 @@ described by CONFIG, a <genenetwork-configuration> object."
   (with-imported-modules '((guix build utils))
     (with-packages (list ccwl git-minimal gnu-make guile-3.0 guile-dbd-mysql
                          guile-dbi guile-hashing guile-libyaml guile-sparql
-                         nss-certs virtuoso-ose)
+                         guile-zlib nss-certs virtuoso-ose)
       #~(begin
           (use-modules (guix build utils)
                        (srfi srfi-26)
