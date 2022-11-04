@@ -584,11 +584,6 @@ described by CONFIG, a <genenetwork-configuration> object."
             (invoke "./pre-inst-env" "./dump.scm"
                     connection-settings-file
                     dump-directory)
-            ;; Import GeneRIF into RDF.
-            (invoke "./pre-inst-env" "./import-generif.scm"
-                    (string-append #$%dump-genenetwork-database-export-directory
-                                   "/generifs_basic.gz")
-                    dump-directory)
             ;; Validate dumped RDF, sending the error output to
             ;; oblivion because we don't want to print out potentially
             ;; sensitive data.
@@ -599,11 +594,9 @@ described by CONFIG, a <genenetwork-configuration> object."
                    "--count"
                    (string-append dump-directory "/dump.ttl")))
             ;; Load RDF into virtuoso.
-            (for-each (lambda (ttl)
-                        (invoke "./pre-inst-env" "./load-rdf.scm"
-                                connection-settings-file
-                                (string-append dump-directory "/" ttl)))
-                      (list "dump.ttl" "generif.ttl"))
+            (invoke "./pre-inst-env" "./load-rdf.scm"
+                    connection-settings-file
+                    (string-append dump-directory "/dump.ttl"))
             ;; Visualize schema and archive results.
             (invoke "./pre-inst-env" "./visualize-schema.scm"
                     connection-settings-file)
