@@ -817,8 +817,8 @@ reverse proxy tissue."
                    (service redis-service-type)
                    (service virtuoso-service-type
                             (virtuoso-configuration
-                             (server-port 8891)
-                             (http-server-port 8892)))
+                             (server-port 9081)
+                             (http-server-port 9082)))
                    (service genenetwork-service-type
                             (genenetwork-configuration
                              (gn2-port %genenetwork2-port)
