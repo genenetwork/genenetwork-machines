@@ -105,6 +105,8 @@ be imported into G-expressions."
             (default 8083))
   (genotype-files genenetwork-configuration-genotype-files
                   (default "/var/genenetwork/genotype-files"))
+  (sparql-endpoint genenetwork-configuration-sparql-endpoint
+                   (default "http://localhost:8081/sparql"))
   (xapian-db-path genenetwork-xapian-db-path
                   (default "/var/genenetwork/xapian")))
 
@@ -339,7 +341,7 @@ server described by CONFIG, a <genenetwork-configuration> object."
   "Return a G-expression that runs the latest genenetwork3 development
 server described by CONFIG, a <genenetwork-configuration> object."
   (match-record config <genenetwork-configuration>
-    (gn3-repository gn3-port xapian-db-path)
+    (gn3-repository gn3-port sparql-endpoint xapian-db-path)
     (with-manifest (package->development-manifest genenetwork3)
       (with-packages (list git-minimal nss-certs)
         (with-imported-modules '((guix build utils))
@@ -363,6 +365,7 @@ server described by CONFIG, a <genenetwork-configuration> object."
               ;; Configure genenetwork3.
               (setenv "GN3_CONF"
                       #$(mixed-text-file "gn3.conf"
+                                         "SPARQL_ENDPOINT=\"" sparql-endpoint "\"\n"
                                          "XAPIAN_DB_PATH=\"" xapian-db-path "\"\n"))
               (setenv "HOME" "/tmp")
               ;; Run genenetwork3.
@@ -775,6 +778,8 @@ reverse proxy tissue."
 (define %genenetwork2-port 9092)
 ;; Port on which genenetwork3 is listening
 (define %genenetwork3-port 9093)
+;; Port on which virtuoso's SPARQL endpoint is listening
+(define %virtuoso-sparql-port 9082)
 
 (operating-system
   (host-name "genenetwork-development")
@@ -818,12 +823,15 @@ reverse proxy tissue."
                    (service virtuoso-service-type
                             (virtuoso-configuration
                              (server-port 9081)
-                             (http-server-port 9082)))
+                             (http-server-port %virtuoso-sparql-port)))
                    (service genenetwork-service-type
                             (genenetwork-configuration
                              (gn2-port %genenetwork2-port)
                              (gn3-port %genenetwork3-port)
                              (genotype-files "/export/data/genenetwork/genotype_files")
+                             (sparql-endpoint (string-append "http://localhost:"
+                                                             (number->string %virtuoso-sparql-port)
+                                                             "/sparql"))
                              (xapian-db-path "/export/data/genenetwork/xapian")))
                    (simple-service 'set-dump-genenetwork-database-export-directory-permissions
                                    activation-service-type
