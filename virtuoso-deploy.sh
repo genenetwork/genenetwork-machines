@@ -24,7 +24,7 @@
 container_script=$(guix system container \
                         --network \
                         --verbosity=3 \
-                        --share=/var/guix-containers/virtuoso/var/lib/virtuoso=/var/lib/virtuoso \
+                        --share=/export2/guix-containers/virtuoso/var/lib/virtuoso=/var/lib/virtuoso \
                         virtuoso.scm)
 
 echo $container_script

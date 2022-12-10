@@ -23,8 +23,8 @@
 
 container_script=$(guix system container \
                         --verbosity=3 \
-                        --share=/var/guix-containers/genenetwork/var/lib/mysql=/var/lib/mysql \
-                        --share=/var/guix-containers/genenetwork/var/lib/virtuoso=/var/lib/virtuoso \
+                        --share=/export2/guix-containers/genenetwork/var/lib/mysql=/var/lib/mysql \
+                        --share=/export2/guix-containers/genenetwork/var/lib/virtuoso=/var/lib/virtuoso \
                         production.scm)
 
 echo $container_script

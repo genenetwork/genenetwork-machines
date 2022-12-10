@@ -22,8 +22,8 @@
 container_script=$(guix system container \
                         --network \
                         --verbosity=3 \
-                        --share=/var/guix-containers/public-sparql/var/lib/mysql=/var/lib/mysql \
-                        --share=/var/guix-containers/public-sparql/var/lib/virtuoso=/var/lib/virtuoso \
+                        --share=/export2/guix-containers/public-sparql/var/lib/mysql=/var/lib/mysql \
+                        --share=/export2/guix-containers/public-sparql/var/lib/virtuoso=/var/lib/virtuoso \
                         public-sparql.scm)
 
 echo $container_script
