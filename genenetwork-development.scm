@@ -71,6 +71,11 @@
 (define %guix-daemon-uri
   "/var/host-guix/daemon-socket/socket")
 
+;; We cannot refer to sudo in the store since that sudo does not have
+;; the setuid bit set. See "(guix) Setuid Programs".
+(define sudo
+  "/run/setuid-programs/sudo")
+
 (define (manifest-cons package onto-manifest)
   "Return a manifest with PACKAGE and all packages in ONTO-MANIFEST."
   (manifest (cons (package->manifest-entry package)
@@ -222,11 +227,7 @@ command to be executed."
                                     #~(begin
                                         (use-modules (guix build utils))
                                         (when (string=? (getenv "RESULT") "success")
-                                          ;; We cannot refer to sudo in the
-                                          ;; store since that sudo does not have
-                                          ;; the setuid bit set. See "(guix)
-                                          ;; Setuid Programs".
-                                          (invoke "/run/setuid-programs/sudo"
+                                          (invoke #$sudo
                                                   #$(file-append shepherd "/bin/herd")
                                                   "restart" "genenetwork2")
                                           (invoke #$(file-append laminar "/bin/laminarc")
@@ -256,11 +257,7 @@ command to be executed."
                                     #~(begin
                                         (use-modules (guix build utils))
                                         (when (string=? (getenv "RESULT") "success")
-                                          ;; We cannot refer to sudo in the
-                                          ;; store since that sudo does not have
-                                          ;; the setuid bit set. See "(guix)
-                                          ;; Setuid Programs".
-                                          (invoke "/run/setuid-programs/sudo"
+                                          (invoke #$sudo
                                                   #$(file-append shepherd "/bin/herd")
                                                   "restart" "genenetwork3")
                                           (invoke #$(file-append laminar "/bin/laminarc")
