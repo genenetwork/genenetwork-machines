@@ -45,6 +45,7 @@
              ((gnu packages version-control) #:select (git-minimal))
              (gnu services ci)
              (gnu services databases)
+             (gnu services mcron)
              (gnu services shepherd)
              (gnu services web)
              (gnu system file-systems)
@@ -207,6 +208,42 @@ command to be executed."
                       (manifest-cons python-mypy
                                      (package->development-manifest genenetwork3))))
 
+(define %xapian-directory
+  "/export/data/genenetwork/xapian")
+
+(define (build-xapian-index-gexp project)
+  "Return a G-expression that builds and installs a Xapian index using
+genenetwork3 source from the latest commit of @var{project}."
+  (with-imported-modules '((guix build utils))
+    (with-manifest (manifest-cons* git-minimal nss-certs
+                                   (package->development-manifest genenetwork3))
+      #~(begin
+          (use-modules (guix build utils)
+                       (srfi srfi-26))
+
+          (invoke "git" "clone" "--depth" "1"
+                  #$(forge-project-repository project)
+                  ".")
+          (let ((xapian-directory #$%xapian-directory)
+                (xapian-build-directory (string-append #$%xapian-directory
+                                                       "/build")))
+            (dynamic-wind
+              (cut mkdir xapian-build-directory)
+              (lambda ()
+                ;; Build xapian index.
+                (setenv "PYTHONPATH" (getcwd))
+                (invoke "./scripts/index-genenetwork" xapian-build-directory)
+                ;; Stop genenetwork3, replace old xapian index and
+                ;; start genenetwork3.
+                (dynamic-wind
+                  (cut invoke #$sudo #$(file-append shepherd "/bin/herd") "stop" "genenetwork3")
+                  (lambda ()
+                    (for-each (lambda (file)
+                                (rename-file file (string-append xapian-directory "/" (basename file))))
+                              (find-files xapian-build-directory)))
+                  (cut invoke #$sudo #$(file-append shepherd "/bin/herd") "start" "genenetwork3")))
+              (cut delete-file-recursively xapian-build-directory)))))))
+
 (define (genenetwork-projects config)
   "Return forge projects for genenetwork described by CONFIG, a
 <genenetwork-configuration> object."
@@ -275,7 +312,11 @@ command to be executed."
                                  this-forge-project
                                  this-forge-laminar-job
                                  genenetwork3-mypy
-                                 #:guix-daemon-uri %guix-daemon-uri)))))
+                                 #:guix-daemon-uri %guix-daemon-uri)))
+                          (forge-laminar-job
+                           (name "genenetwork3-build-xapian-index")
+                           (run (build-xapian-index-gexp this-forge-project))
+                           (trigger? #f))))
            (ci-jobs-trigger 'webhook)))))
 
 (define (genenetwork2-cd-gexp config)
@@ -795,6 +836,8 @@ reverse proxy tissue."
                     ;; and genenetwork3.
                     "\nlaminar ALL = NOPASSWD: "
                     (file-append shepherd "/bin/herd") " restart genenetwork2, "
+                    (file-append shepherd "/bin/herd") " start genenetwork3, "
+                    (file-append shepherd "/bin/herd") " stop genenetwork3, "
                     (file-append shepherd "/bin/herd") " restart genenetwork3\n"))
   (services (cons* (service forge-service-type
                             (forge-configuration
@@ -805,6 +848,17 @@ reverse proxy tissue."
                             (laminar-configuration
                              (title "GeneNetwork CI")
                              (bind-http "localhost:9089")))
+                   (service mcron-service-type
+                            (mcron-configuration
+                             (jobs (list #~(job '(next-day)
+                                                #$(program-file "build-xapian-index-cron"
+                                                                (with-imported-modules '((guix build utils))
+                                                                  #~(begin
+                                                                      (use-modules (guix build utils))
+                                                                      (setenv "LAMINAR_REASON" "Nightly xapian index rebuild")
+                                                                      (invoke #$(file-append laminar "/bin/laminarc")
+                                                                              "queue" "genenetwork3-build-xapian-index"))))
+                                                #:user "laminar")))))
                    (simple-service 'install-laminar-template
                                    activation-service-type
                                    (install-laminar-template-gexp
@@ -829,8 +883,8 @@ reverse proxy tissue."
                              (sparql-endpoint (string-append "http://localhost:"
                                                              (number->string %virtuoso-sparql-port)
                                                              "/sparql"))
-                             (xapian-db-path "/export/data/genenetwork/xapian")))
-                   (simple-service 'set-dump-genenetwork-database-export-directory-permissions
+                             (xapian-db-path %xapian-directory)))
+                   (simple-service 'set-build-directory-permissions
                                    activation-service-type
                                    (with-imported-modules '((guix build utils))
                                      #~(begin
@@ -840,8 +894,10 @@ reverse proxy tissue."
                                                      (chown file
                                                             (passwd:uid (getpw "laminar"))
                                                             (passwd:gid (getpw "laminar"))))
-                                                   (find-files #$%dump-genenetwork-database-export-directory
-                                                               #:directories? #t)))))
+                                                   (append (find-files #$%xapian-directory
+                                                                       #:directories? #t)
+                                                           (find-files #$%dump-genenetwork-database-export-directory
+                                                                       #:directories? #t))))))
                    (service tissue-service-type
                             (tissue-configuration
                              (hosts
