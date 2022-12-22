@@ -182,7 +182,7 @@ command to be executed."
          '#$tests-command))))
 
 (define genenetwork3-unit-tests
-  (genenetwork3-tests (list "python3" "-m" "unittest")
+  (genenetwork3-tests (list "pytest" "-k" "unit_test")
                       (package->development-manifest genenetwork3)))
 
 (define genenetwork3-pylint
