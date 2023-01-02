@@ -37,3 +37,4 @@ container_script=$(guix system container --network \
 
 echo $container_script
 sudo ln --force --symbolic $container_script /usr/local/bin/genenetwork-development-container
+sudo ln --force --symbolic /usr/local/bin/genenetwork-development-container /var/guix/gcroots

@@ -28,3 +28,4 @@ container_script=$(guix system container \
 
 echo $container_script
 sudo ln --force --symbolic $container_script /usr/local/bin/public-sparql-container
+sudo ln --force --symbolic /usr/local/bin/public-sparql-container /var/guix/gcroots
