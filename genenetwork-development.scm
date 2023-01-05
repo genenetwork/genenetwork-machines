@@ -35,7 +35,7 @@
              ((gnu packages gnupg) #:select (guile-gcrypt))
              ((gnu packages graphviz) #:select (graphviz))
              ((gnu packages guile) #:select (guile-3.0 guile-zlib))
-             ((gnu packages guile-xyz) #:select (guile-dbd-mysql guile-dbi guile-hashing guile-libyaml))
+             ((gnu packages guile-xyz) #:select (guile-dbd-mysql guile-dbi guile-hashing guile-lib guile-libyaml))
              ((gnu packages guile-xyz) #:select (guile-sparql) #:prefix guix:)
              ((gnu packages haskell-apps) #:select (shellcheck))
              ((gnu packages python-check) #:select (python-mypy))
@@ -718,6 +718,48 @@ menu link to channels.scm and the issue tracker at ISSUE-TRACKER-URI."
         (mkdir-p "/var/lib/laminar/custom")
         (switch-symlinks "/var/lib/laminar/custom/index.html" #$template))))
 
+(define %ci-domain
+  "ci.genenetwork.org")
+
+(define (cd-error-pages-gexp)
+  "Return a G-expression that builds a directory with error pages for
+the GeneNetwork continuous deployment."
+  (with-imported-modules '((guix build utils))
+    (with-extensions (list guile-lib)
+      #~(begin
+          (use-modules (guix build utils)
+                       (htmlprag))
+
+          (define (ci-badge job)
+            `(div (a (@ (href ,(string-append "https://" #$%ci-domain "/jobs/" job)))
+                     (img (@ (src ,(string-append "https://" #$%ci-domain "/badge/" job ".svg")))))))
+
+          (define (page-sxml jobs)
+            `(html
+              (head
+               (title "GeneNetwork CD down!"))
+              (body
+               (h1 "GeneNetwork CD is down!")
+               (p "Is the CI red?")
+               ,@(map ci-badge jobs))))
+
+          (mkdir-p (string-append #$output "/error"))
+          (call-with-output-file (string-append #$output "/error/502.html")
+            (lambda (port)
+              (display "<!DOCTYPE html>" port)
+              (newline port)
+              (display
+               (sxml->html
+                ;; Construct a 502 page pulling out CI job names using a
+                ;; dummy default genenetwork configuration.
+                (page-sxml '#$(append-map (lambda (project)
+                                            (map forge-laminar-job-name
+                                                 (forge-project-ci-jobs project)))
+                                          (genenetwork-projects
+                                           (genenetwork-configuration)))))
+               port)
+              (newline port)))))))
+
 (define (channels-scm-gexp published-channel-names)
   "Return a G-expression that builds a directory with a channels.scm
 file to be served by the laminar reverse
@@ -762,7 +804,15 @@ on."
            (body (list "rewrite /api3/(.*) /api/$1 break;"
                        (string-append "proxy_pass http://localhost:"
                                       (number->string gn3-port) ";")
-                       "proxy_set_header Host $host;")))))))
+                       "proxy_set_header Host $host;")))
+          (nginx-location-configuration
+           (uri " /error/")
+           (body (list #~(string-append
+                          "root "
+                          #$(computed-file "genenetwork-cd-error-pages"
+                                           (cd-error-pages-gexp))
+                          ";"))))))
+   (raw-content (list "error_page 502 /error/502.html;"))))
 
 (define (laminar-reverse-proxy-server-block listen laminar-bind-http webhook-port published-channel-names)
   "Return an <nginx-server-configuration> object to reverse proxy
@@ -771,7 +821,7 @@ laminar listening on LAMINAR-BIND-HTTP. WEBHOOK-PORT is the port the
 webhook server is listening on. PUBLISHED-CHANNEL-NAMES is a list of
 channel names for which a channels.scm should be published."
   (nginx-server-configuration
-   (server-name '("ci.genenetwork.org"))
+   (server-name (list %ci-domain))
    (listen (list listen))
    (locations
     (list (nginx-location-configuration
