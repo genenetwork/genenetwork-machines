@@ -228,7 +228,12 @@ genenetwork3 source from the latest commit of @var{project}."
                 (xapian-build-directory (string-append #$%xapian-directory
                                                        "/build")))
             (dynamic-wind
-              (cut mkdir xapian-build-directory)
+              (lambda ()
+                ;; Delete xapian-build-directory in case previous
+                ;; build exited without cleaning up.
+                (when (file-exists? xapian-build-directory)
+                  (delete-file-recursively xapian-build-directory))
+                (mkdir xapian-build-directory))
               (lambda ()
                 ;; Build xapian index.
                 (setenv "PYTHONPATH" (getcwd))
