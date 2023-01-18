@@ -113,6 +113,8 @@ be imported into G-expressions."
                   (default "/var/genenetwork/genotype-files"))
   (sparql-endpoint genenetwork-configuration-sparql-endpoint
                    (default "http://localhost:8081/sparql"))
+  (data-directory genenetwork-data-directory
+                  (default "/var/genenetwork"))
   (xapian-db-path genenetwork-xapian-db-path
                   (default "/var/genenetwork/xapian")))
 
@@ -384,7 +386,7 @@ server described by CONFIG, a <genenetwork-configuration> object."
   "Return a G-expression that runs the latest genenetwork3 development
 server described by CONFIG, a <genenetwork-configuration> object."
   (match-record config <genenetwork-configuration>
-    (gn3-repository gn3-port sparql-endpoint xapian-db-path)
+    (gn3-repository gn3-port sparql-endpoint data-directory xapian-db-path)
     (with-manifest (package->development-manifest genenetwork3)
       (with-packages (list git-minimal nss-certs)
         (with-imported-modules '((guix build utils))
@@ -409,6 +411,7 @@ server described by CONFIG, a <genenetwork-configuration> object."
               (setenv "GN3_CONF"
                       #$(mixed-text-file "gn3.conf"
                                          "SPARQL_ENDPOINT=\"" sparql-endpoint "\"\n"
+                                         "DATA_DIR=\"" data-directory "\"\n"
                                          "XAPIAN_DB_PATH=\"" xapian-db-path "\"\n"))
               (setenv "HOME" "/tmp")
               ;; Run genenetwork3.
@@ -422,7 +425,7 @@ server described by CONFIG, a <genenetwork-configuration> object."
   "Return shepherd services to run the genenetwork development server
 described by CONFIG, a <genenetwork-configuration> object."
   (match-record config <genenetwork-configuration>
-    (gn2-port gn3-port genotype-files xapian-db-path)
+    (gn2-port gn3-port genotype-files data-directory xapian-db-path)
     (list (shepherd-service
            (documentation "Run GeneNetwork 2 development server.")
            (provision '(genenetwork2))
@@ -459,6 +462,9 @@ described by CONFIG, a <genenetwork-configuration> object."
                                                 (source "/run/mysqld/mysqld.sock")
                                                 (target source)
                                                 (writable? #t))
+                                               (file-system-mapping
+                                                (source data-directory)
+                                                (target source))
                                                (file-system-mapping
                                                 (source xapian-db-path)
                                                 (target source)))
@@ -938,6 +944,7 @@ reverse proxy tissue."
                              (sparql-endpoint (string-append "http://localhost:"
                                                              (number->string %virtuoso-sparql-port)
                                                              "/sparql"))
+                             (data-directory "/export/data/genenetwork")
                              (xapian-db-path %xapian-directory)))
                    (simple-service 'set-build-directory-permissions
                                    activation-service-type
