@@ -209,7 +209,7 @@ command to be executed."
                                      (package->development-manifest genenetwork3))))
 
 (define %xapian-directory
-  "/export/data/genenetwork/xapian")
+  "/export/data/genenetwork-xapian")
 
 (define (build-xapian-index-gexp project)
   "Return a G-expression that builds and installs a Xapian index using

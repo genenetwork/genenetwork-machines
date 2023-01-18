@@ -31,6 +31,7 @@ container_script=$(guix system container --network \
                         --share=/export2/guix-containers/genenetwork-development/var/log/cd=/var/log/cd \
                         --expose=/export/data/genenetwork/genotype_files \
                         --share=/export/data/genenetwork/xapian \
+                        --share=/export/data/genenetwork-xapian \
                         --share=/export/genenetwork-database-dump \
                         --share=/var/run/mysqld/mysqld.sock=/run/mysqld/mysqld.sock \
                         genenetwork-development.scm)
