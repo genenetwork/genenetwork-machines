@@ -99,5 +99,5 @@ with genenetwork3 dependencies."
                              (exit #f)))
             (for-each (cut invoke "shellcheck" <>)
                       (find-files "." shell-script?))
-            (invoke "pylint" "gn3"))
+            (invoke "pylint" "*py" "tests" "gn3" "scripts" "sheepdog"))
           (mkdir-p #$output)))))
