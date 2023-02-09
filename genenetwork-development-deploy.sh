@@ -21,6 +21,9 @@
 
 # Build and install genenetwork development container on penguin2.
 
+# If we shared only the mysqld.sock socket file, it would break when
+# the external mysqld server is restarted. So, we share the mysqld
+# socket directory.
 container_script=$(guix system container --network \
                         --verbosity=3 \
                         --load-path=. \
@@ -32,7 +35,7 @@ container_script=$(guix system container --network \
                         --expose=/export/data/genenetwork \
                         --share=/export/data/genenetwork-xapian \
                         --share=/export/genenetwork-database-dump \
-                        --share=/var/run/mysqld/mysqld.sock=/run/mysqld/mysqld.sock \
+                        --share=/var/run/mysqld=/run/mysqld \
                         genenetwork-development.scm)
 
 echo $container_script

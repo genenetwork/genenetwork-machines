@@ -436,11 +436,14 @@ described by CONFIG, a <genenetwork-configuration> object."
                               (program-file "genenetwork2"
                                             (genenetwork2-cd-gexp config))
                               #:name "genenetwork2-pola-wrapper"
+                              ;; If we mapped only the mysqld.sock
+                              ;; socket file, it would break when the
+                              ;; external mysqld server is restarted.
                               #:mappings (list (file-system-mapping
                                                 (source genotype-files)
                                                 (target source))
                                                (file-system-mapping
-                                                (source "/run/mysqld/mysqld.sock")
+                                                (source "/run/mysqld")
                                                 (target source)
                                                 (writable? #t)))
                               #:namespaces (delq 'net %namespaces))
@@ -458,8 +461,11 @@ described by CONFIG, a <genenetwork-configuration> object."
                               (program-file "genenetwork3"
                                             (genenetwork3-cd-gexp config))
                               #:name "genenetwork3-pola-wrapper"
+                              ;; If we mapped only the mysqld.sock
+                              ;; socket file, it would break when the
+                              ;; external mysqld server is restarted.
                               #:mappings (list (file-system-mapping
-                                                (source "/run/mysqld/mysqld.sock")
+                                                (source "/run/mysqld")
                                                 (target source)
                                                 (writable? #t))
                                                (file-system-mapping
