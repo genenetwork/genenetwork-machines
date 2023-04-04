@@ -1,6 +1,6 @@
 ;;; genenetwork-machines --- Guix configuration for genenetwork machines
 ;;; Copyright © 2022 Arun Isaac <arunisaac@systemreboot.net>
-;;; Copyright © 2022 Frederick Muriuki Muriithi <fredmanglis@gmail.com>
+;;; Copyright © 2022, 2023 Frederick Muriuki Muriithi <fredmanglis@gmail.com>
 ;;;
 ;;; This file is part of genenetwork-machines.
 ;;;
@@ -239,7 +239,8 @@ genenetwork3 source from the latest commit of @var{project}."
               (lambda ()
                 ;; Build xapian index.
                 (setenv "PYTHONPATH" (getcwd))
-                (invoke "./scripts/index-genenetwork" xapian-build-directory)
+                (invoke "./scripts/index-genenetwork" xapian-build-directory
+			"mysql://webqtlout:webqtlout@localhost/db_webqtl")
                 ;; Stop genenetwork3, replace old xapian index and
                 ;; start genenetwork3.
                 (dynamic-wind
