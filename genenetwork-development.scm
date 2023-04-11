@@ -1,5 +1,5 @@
 ;;; genenetwork-machines --- Guix configuration for genenetwork machines
-;;; Copyright © 2022 Arun Isaac <arunisaac@systemreboot.net>
+;;; Copyright © 2022, 2023 Arun Isaac <arunisaac@systemreboot.net>
 ;;; Copyright © 2022, 2023 Frederick Muriuki Muriithi <fredmanglis@gmail.com>
 ;;;
 ;;; This file is part of genenetwork-machines.
@@ -43,6 +43,7 @@
              ((gnu packages rdf) #:select (raptor2))
              ((gnu packages tls) #:select (openssl))
              ((gnu packages version-control) #:select (git-minimal))
+             ((gnu packages web) #:select (tissue))
              (gnu services ci)
              (gnu services databases)
              (gnu services mcron)
