@@ -34,7 +34,7 @@
              ((gnu packages databases) #:select (virtuoso-ose))
              ((gnu packages gnupg) #:select (guile-gcrypt))
              ((gnu packages graphviz) #:select (graphviz))
-             ((gnu packages guile) #:select (guile-3.0 guile-zlib))
+             ((gnu packages guile) #:select (guile-3.0 guile-git guile-zlib))
              ((gnu packages guile-xyz) #:select (guile-dbd-mysql guile-dbi guile-hashing guile-lib guile-libyaml))
              ((gnu packages guile-xyz) #:select (guile-sparql) #:prefix guix:)
              ((gnu packages haskell-apps) #:select (shellcheck))
@@ -43,7 +43,8 @@
              ((gnu packages rdf) #:select (raptor2))
              ((gnu packages tls) #:select (openssl))
              ((gnu packages version-control) #:select (git-minimal))
-             ((gnu packages web) #:select (tissue))
+             ((gnu packages version-control) #:select (libgit2-1.3) #:prefix guix:)
+             ((gnu packages web) #:select (tissue) #:prefix guix:)
              (gnu services ci)
              (gnu services databases)
              (gnu services mcron)
@@ -60,6 +61,7 @@
              (guix profiles)
              (guix records)
              (guix store)
+             (guix utils)
              (forge forge)
              (forge laminar)
              (forge socket)
@@ -686,6 +688,37 @@ described by CONFIG, a <genenetwork-configuration> object."
 ;;; gn-gemtext-threads
 ;;;
 
+;; Use a patched libgit2 for tissue until there is a way to disable
+;; repository ownership validation using the API. See
+;; https://issues.guix.gnu.org/55399
+(define libgit2-1.3
+  (package
+    (inherit guix:libgit2-1.3)
+    (name "libgit2")
+    (arguments
+     (substitute-keyword-arguments (package-arguments guix:libgit2-1.3)
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (add-after 'unpack 'disable-ownership-validation
+              (lambda _
+                (substitute* "src/repository.c"
+                  (("git_repository__validate_ownership = true")
+                   "git_repository__validate_ownership = false"))))))))))
+
+(define guile-git-for-tissue
+  (package
+    (inherit guile-git)
+    (inputs
+     (modify-inputs (package-inputs guile-git)
+       (replace "libgit2" libgit2-1.3)))))
+
+(define tissue
+  (package
+    (inherit guix:tissue)
+    (inputs
+     (modify-inputs (package-inputs guix:tissue)
+       (replace "guile-git" guile-git-for-tissue)))))
+
 (define gn-gemtext-threads-project
   (forge-project
    (name "gn-gemtext-threads")
@@ -970,6 +1003,7 @@ reverse proxy tissue."
                                                                        #:directories? #t))))))
                    (service tissue-service-type
                             (tissue-configuration
+                             (package tissue)
                              (hosts
                               (list (tissue-host
                                      (name "issues.genenetwork.org")
