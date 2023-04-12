@@ -898,6 +898,9 @@ channel names for which a channels.scm should be published."
                                            (channels-scm-gexp published-channel-names))
                           ";"))))))))
 
+;; Port on which tissue is listening
+(define %tissue-port 9083)
+
 (define (tissue-reverse-proxy-server-block listen)
   "Return an <nginx-server-configuration> object listening on LISTEN to
 reverse proxy tissue."
@@ -909,7 +912,7 @@ reverse proxy tissue."
    (locations
     (list (nginx-location-configuration
            (uri "@tissue-search")
-           (body (list "proxy_pass http://unix:/var/run/tissue/socket:;"
+           (body (list (string-append "proxy_pass http://localhost:" (number->string %tissue-port) ";")
                        "proxy_set_header Host $host;")))))))
 
 ;; Port on which webhook is listening
@@ -1004,6 +1007,9 @@ reverse proxy tissue."
                    (service tissue-service-type
                             (tissue-configuration
                              (package tissue)
+                             (socket
+                              (forge-ip-socket
+                               (port %tissue-port)))
                              (hosts
                               (list (tissue-host
                                      (name "issues.genenetwork.org")
