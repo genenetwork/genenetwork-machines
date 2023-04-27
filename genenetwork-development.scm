@@ -31,7 +31,7 @@
              ((gnu packages check) #:select (python-pylint))
              ((gnu packages ci) #:select (laminar))
              ((gnu packages compression) #:select (gzip))
-             ((gnu packages databases) #:select (virtuoso-ose))
+             ((gnu packages databases) #:select (virtuoso-ose yoyo-migrations))
              ((gnu packages gnupg) #:select (guile-gcrypt))
              ((gnu packages graphviz) #:select (graphviz))
              ((gnu packages guile) #:select (guile-3.0 guile-git guile-zlib))
@@ -119,7 +119,9 @@ be imported into G-expressions."
   (data-directory genenetwork-data-directory
                   (default "/var/genenetwork"))
   (xapian-db-path genenetwork-xapian-db-path
-                  (default "/var/genenetwork/xapian")))
+                  (default "/var/genenetwork/xapian"))
+  (auth-db-path genenetwork-auth-db-path
+		(default "/export/data/genenetwork-sqlite/auth.db")))
 
 
 ;;;
@@ -196,6 +198,40 @@ command to be executed."
   (genenetwork3-tests (list "pytest" "-k" "unit_test")
                       (package->development-manifest genenetwork3)))
 
+(define (setup-auth-db config)
+  "Return a G-Expression that sets up the auth(entic|oris)ation database file."
+  (match-record config <genenetwork-configuration>
+		(auth-db-path)
+		(with-imported-modules '((guix build utils))
+		  #~(begin
+			(use-modules (guix build utils))
+			(unless (file-exists? #$%auth-db-path)
+			  (call-with-output-file #$%auth-db-path (const #t)))
+			(chown #$%auth-db-path
+			       (passwd:uid (getpw "genenetwork"))
+			       (passwd:gid (getpw "genenetwork")))))))
+
+(define (genenetwork3-auth-migrations config)
+  "Return a G-Expression that runs the migrations for the Auth(entic|oris)ation
+ database."
+  (match-record config <genenetwork-configuration>
+    (gn3-repository auth-db-path)
+    (with-imported-modules '((guix build utils))
+      (with-packages (list bash coreutils git-minimal nss-certs yoyo-migrations)
+	#~(begin
+	    (use-modules (guix build utils))
+	    (invoke "git" "clone" "--depth" "1" #$gn3-repository)
+	    (invoke #$sudo #$(file-append yoyo-migrations "/bin/yoyo")
+		    "apply" "--config"
+		    #$(mixed-text-file
+		       "yoyo.ini"
+		       "[DEFAULT]\n"
+		       "sources = genenetwork3/migrations/auth/\n"
+		       "database = sqlite:///" auth-db-path "\n"
+		       "migration_table = _yoyo_migration\n"
+		       "batch_mode = on\n"
+		       "verbosity = 2")))))))
+
 (define genenetwork3-pylint
   (with-imported-modules (source-module-closure '((genenetwork development-helper))
                                                 #:select? import-module?)
@@ -255,6 +291,9 @@ genenetwork3 source from the latest commit of @var{project}."
                   (cut invoke #$sudo #$(file-append shepherd "/bin/herd") "start" "genenetwork3")))
               (cut delete-file-recursively xapian-build-directory)))))))
 
+(define %auth-db-path
+  "/export/data/genenetwork-sqlite/auth.db")
+
 (define (genenetwork-projects config)
   "Return forge projects for genenetwork described by CONFIG, a
 <genenetwork-configuration> object."
@@ -293,15 +332,11 @@ genenetwork3 source from the latest commit of @var{project}."
            (name "genenetwork3")
            (repository gn3-repository)
            (ci-jobs (list (forge-laminar-job
-                           (name "genenetwork3")
-                           (run (derivation-job-gexp
-                                 this-forge-project
-                                 this-forge-laminar-job
-                                 genenetwork3-unit-tests
-                                 #:guix-daemon-uri %guix-daemon-uri))
-                           ;; If unit tests pass, redeploy genenetwork3 and
-                           ;; trigger genenetwork2 tests.
-                           (after (with-imported-modules '((guix build utils))
+			   (name "genenetwork3-auth-migrations")
+			   (run (genenetwork3-auth-migrations config))
+			   ;; If migrations run successfully, redeploy
+			   ;; genenetwork3 and trigger genenetwork2 tests
+			   (after (with-imported-modules '((guix build utils))
                                     #~(begin
                                         (use-modules (guix build utils))
                                         (when (string=? (getenv "RESULT") "success")
@@ -309,7 +344,22 @@ genenetwork3 source from the latest commit of @var{project}."
                                                   #$(file-append shepherd "/bin/herd")
                                                   "restart" "genenetwork3")
                                           (invoke #$(file-append laminar "/bin/laminarc")
-                                                  "queue" "genenetwork2"))))))
+                                                  "queue" "genenetwork2")))))
+			   (trigger? #f))
+			  (forge-laminar-job
+                           (name "genenetwork3")
+                           (run (derivation-job-gexp
+                                 this-forge-project
+                                 this-forge-laminar-job
+                                 genenetwork3-unit-tests
+                                 #:guix-daemon-uri %guix-daemon-uri))
+                           ;; If unit tests pass, trigger the auth migrations
+                           (after (with-imported-modules '((guix build utils))
+                                    #~(begin
+                                        (use-modules (guix build utils))
+                                        (when (string=? (getenv "RESULT") "success")
+                                          (invoke #$(file-append laminar "/bin/laminarc")
+                                                  "queue" "genenetwork3-auth-migrations"))))))
                           (forge-laminar-job
                            (name "genenetwork3-pylint")
                            (run (derivation-job-gexp
@@ -390,7 +440,7 @@ server described by CONFIG, a <genenetwork-configuration> object."
   "Return a G-expression that runs the latest genenetwork3 development
 server described by CONFIG, a <genenetwork-configuration> object."
   (match-record config <genenetwork-configuration>
-    (gn3-repository gn3-port sparql-endpoint data-directory xapian-db-path)
+    (gn3-repository gn3-port sparql-endpoint data-directory xapian-db-path auth-db-path)
     (with-manifest (package->development-manifest genenetwork3)
       (with-packages (list git-minimal nss-certs)
         (with-imported-modules '((guix build utils))
@@ -416,7 +466,8 @@ server described by CONFIG, a <genenetwork-configuration> object."
                       #$(mixed-text-file "gn3.conf"
                                          "SPARQL_ENDPOINT=\"" sparql-endpoint "\"\n"
                                          "DATA_DIR=\"" data-directory "\"\n"
-                                         "XAPIAN_DB_PATH=\"" xapian-db-path "\"\n"))
+                                         "XAPIAN_DB_PATH=\"" xapian-db-path "\"\n"
+					 "AUTH_DB_PATH=\"" auth-db-path "\"\n"))
               (setenv "HOME" "/tmp")
               ;; Run genenetwork3.
               (with-directory-excursion "genenetwork3"
@@ -943,7 +994,8 @@ reverse proxy tissue."
                     (file-append shepherd "/bin/herd") " restart genenetwork2, "
                     (file-append shepherd "/bin/herd") " start genenetwork3, "
                     (file-append shepherd "/bin/herd") " stop genenetwork3, "
-                    (file-append shepherd "/bin/herd") " restart genenetwork3\n"))
+                    (file-append shepherd "/bin/herd") " restart genenetwork3, "
+		    (file-append yoyo-migrations "/bin/yoyo")))
   (services (cons* (service forge-service-type
                             (forge-configuration
                              (projects (list qc-project
@@ -980,6 +1032,11 @@ reverse proxy tissue."
                             (virtuoso-configuration
                              (server-port 9081)
                              (http-server-port %virtuoso-sparql-port)))
+		   (simple-service 'set-auth-db-permissions
+				   activation-service-type
+				   (setup-auth-db
+				    (genenetwork-configuration
+				     (auth-db-path %auth-db-path))))
                    (service genenetwork-service-type
                             (genenetwork-configuration
                              (gn2-port %genenetwork2-port)
@@ -989,7 +1046,8 @@ reverse proxy tissue."
                                                              (number->string %virtuoso-sparql-port)
                                                              "/sparql"))
                              (data-directory "/export/data/genenetwork")
-                             (xapian-db-path %xapian-directory)))
+                             (xapian-db-path %xapian-directory)
+			     (auth-db-path %auth-db-path)))
                    (simple-service 'set-build-directory-permissions
                                    activation-service-type
                                    (with-imported-modules '((guix build utils))
