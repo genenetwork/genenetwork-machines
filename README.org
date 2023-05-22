@@ -44,3 +44,39 @@ In containers containing virtuoso instances, it is important to secure
 authentication by changing default user passwords and disabling
 unnecessary users. See [[https://issues.genenetwork.org/topics/systems/virtuoso][virtuoso gemtext documentation]] on passwords for
 more details.
+
+* Getting a Shell into the Container
+
+When you start the container, you can get a shell into the container using the
+~nsenter~ command. You will need the process ID of the container, which your
+can get with something like:
+
+#+BEGIN_SRC sh
+  ps -e | grep shepherd
+#+END_SRC
+
+That will give you output of the form:
+
+#+BEGIN_EXAMPLE
+  11869 pts/3    00:00:00 shepherd
+#+END_EXAMPLE
+
+From the guix [/operating-system/ Reference](https://guix.gnu.org/manual/en/html_node/operating_002dsystem-Reference.html)
+under the *packages* option, the list of packages installed under the global
+profile are found in */run/current-system/profile*, for example:
+
+#+BEGIN_SRC sh
+  /run/current-system/profile/ls /gnu/store
+#+END_SRC
+
+to list the files under */gnu/store*
+
+With that knowledge, we can now get a shell using ~nsenter~ as follows:
+
+#+BEGIN_SRC sh
+  sudo nsenter -a -t 11869 /run/current-system/profile/bin/bash \
+       --init-file /run/current-system/profile/etc/profile
+#+END_SRC
+
+which will give you a bash shell with the ~PATH~ environment variable setup
+correctly to give you access to all packages in the global profile.
