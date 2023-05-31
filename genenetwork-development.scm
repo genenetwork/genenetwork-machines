@@ -431,7 +431,7 @@ server described by CONFIG, a <genenetwork-configuration> object."
                                      (content (package->development-manifest genenetwork2))
                                      (allow-collisions? #t)))
             (setenv "GN_PROXY_URL" "http://genenetwork.org/gn3-proxy/")
-            (setenv "GN_SERVER_URL" "/api3")
+            (setenv "GN_SERVER_URL" "/api3/")
             (setenv "GN3_LOCAL_URL"
                     #$(string-append "http://localhost:"
                                      (number->string gn3-port)))
