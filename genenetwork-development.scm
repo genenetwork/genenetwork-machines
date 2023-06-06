@@ -472,7 +472,7 @@ server described by CONFIG, a <genenetwork-configuration> object."
                                          "SPARQL_ENDPOINT=\"" sparql-endpoint "\"\n"
                                          "DATA_DIR=\"" data-directory "\"\n"
                                          "XAPIAN_DB_PATH=\"" xapian-db-path "\"\n"
-					 "AUTH_DB_PATH=\"" auth-db-path "\"\n"))
+					 "AUTH_DB=\"" auth-db-path "\"\n"))
               (setenv "HOME" "/tmp")
               ;; Run genenetwork3.
               (with-directory-excursion "genenetwork3"
