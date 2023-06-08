@@ -485,7 +485,7 @@ server described by CONFIG, a <genenetwork-configuration> object."
   "Return shepherd services to run the genenetwork development server
 described by CONFIG, a <genenetwork-configuration> object."
   (match-record config <genenetwork-configuration>
-    (gn2-port gn3-port genotype-files data-directory xapian-db-path)
+    (gn2-port gn3-port genotype-files data-directory xapian-db-path auth-db-path)
     (list (shepherd-service
            (documentation "Run GeneNetwork 2 development server.")
            (provision '(genenetwork2))
@@ -533,7 +533,11 @@ described by CONFIG, a <genenetwork-configuration> object."
                                                 (target source))
                                                (file-system-mapping
                                                 (source xapian-db-path)
-                                                (target source)))
+                                                (target source))
+                                               (file-system-mapping
+                                                (source auth-db-path)
+                                                (target source)
+                                                (writable? #t)))
                               #:namespaces (delq 'net %namespaces))
                            "127.0.0.1" #$(number->string gn3-port))
                      #:user "genenetwork"
