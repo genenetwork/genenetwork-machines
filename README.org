@@ -8,7 +8,7 @@ continuous integration and continuous deployment services for
 genenetwork2, genenetwork3 and several other associated projects.
 
 To build and install the container, you will need the
-guix-bioinformatics and guix-forge channels. Once these channels are
+[[https://gitlab.com/genenetwork/guix-bioinformatics][guix-bioinformatics]] and [[https://git.systemreboot.net/guix-forge/][guix-forge]] channels. Once these channels are
 pulled and available, on /penguin2/, run
 #+BEGIN_SRC shell
 $ ./genenetwork-development-deploy.sh
