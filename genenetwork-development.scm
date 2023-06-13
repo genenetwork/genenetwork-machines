@@ -1061,7 +1061,11 @@ reverse proxy tissue."
                    (service redis-service-type)
                    (service virtuoso-service-type
                             (virtuoso-configuration
+			     (number-of-buffers 4000000)
+			     (maximum-dirty-buffers 3000000)
+			     ;; virtuoso-port
                              (server-port 9081)
+			     ;; sparql-port: 9082
                              (http-server-port %virtuoso-sparql-port)))
                    (service genenetwork-service-type
                             (genenetwork-configuration

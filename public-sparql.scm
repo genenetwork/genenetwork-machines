@@ -52,7 +52,9 @@ SPARQL endpoint is listening on."
   (services (cons* (service virtuoso-service-type
                             (virtuoso-configuration
                              (server-port %virtuoso-port)
-                             (http-server-port %sparql-port)))
+                             (http-server-port %sparql-port)
+			     (number-of-buffers 4000000)
+			     (maximum-dirty-buffers 3000000)))
                    (service nginx-service-type
                             (nginx-configuration
                              (server-blocks
