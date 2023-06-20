@@ -54,6 +54,7 @@ SPARQL endpoint is listening on."
                              (server-port %virtuoso-port)
                              (http-server-port %sparql-port)
 			     (number-of-buffers 4000000)
+			     (dirs-allowed "/var/lib/data")
 			     (maximum-dirty-buffers 3000000)))
                    (service nginx-service-type
                             (nginx-configuration

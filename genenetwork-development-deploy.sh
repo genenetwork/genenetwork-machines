@@ -32,6 +32,7 @@ container_script=$(guix system container --network \
                         --share=/export2/guix-containers/genenetwork-development/var/lib/tissue=/var/lib/tissue \
                         --share=/export2/guix-containers/genenetwork-development/var/lib/virtuoso=/var/lib/virtuoso \
                         --share=/export2/guix-containers/genenetwork-development/var/log/cd=/var/log/cd \
+			--share=/export/data/genenetwork-virtuoso=/var/lib/data \
                         --expose=/export/data/genenetwork \
                         --share=/export/data/genenetwork-xapian \
                         --share=/export/data/genenetwork-sqlite \
