@@ -125,6 +125,26 @@ be imported into G-expressions."
 
 
 ;;;
+;;; guix-bioinformatics
+;;;
+
+(define guix-bioinformatics-project
+  (forge-project
+   (name "guix-bioinformatics")
+   (repository "https://gitlab.com/genenetwork/guix-bioinformatics")
+   (description "Bioinformatics packages for GNU Guix")
+   (ci-jobs (list (forge-laminar-job
+                   (name "guix-bioinformatics")
+                   (run (guix-channel-job-gexp
+                         (list (channel
+                                (name 'gn-bioinformatics)
+                                (url "https://gitlab.com/genenetwork/guix-bioinformatics")
+                                (branch "master")))
+                         #:guix-daemon-uri %guix-daemon-uri)))))
+   (ci-jobs-trigger 'webhook)))
+
+
+;;;
 ;;; genenetwork
 ;;;
 
@@ -1030,7 +1050,8 @@ reverse proxy tissue."
                             (forge-configuration
                              (projects (list qc-project
                                              dump-genenetwork-database-project
-                                             gn-gemtext-threads-project))))
+                                             gn-gemtext-threads-project
+                                             guix-bioinformatics-project))))
                    (service laminar-service-type
                             (laminar-configuration
                              (title "GeneNetwork CI")
