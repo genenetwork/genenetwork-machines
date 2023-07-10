@@ -1070,7 +1070,7 @@ reverse proxy tissue."
                             (genenetwork-configuration
                              (gn2-port %genenetwork2-port)
                              (gn3-port %genenetwork3-port)
-                             (genotype-files "/export/data/genenetwork/genotype_files/genotype/")
+                             (genotype-files "/export/data/genenetwork/genotype_files")
                              (sparql-endpoint (string-append "http://localhost:"
                                                              (number->string %virtuoso-sparql-port)
                                                              "/sparql"))
