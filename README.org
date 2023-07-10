@@ -80,3 +80,62 @@ With that knowledge, we can now get a shell using ~nsenter~ as follows:
 
 which will give you a bash shell with the ~PATH~ environment variable setup
 correctly to give you access to all packages in the global profile.
+
+* Troubleshooting Tips
+
+** Use Profiles
+
+When troubleshooting, we need to be using the correct profile that has all the necessary dependencies.  Use a  [[https://ci.genenetwork.org/channels.scm][channels]] file to set up a profile.  An example of a channel that was fixed at Python 3.9:
+
+#+begin_src scheme
+(list (channel
+       (name 'gn-bioinformatics)
+       (url "https://gitlab.com/genenetwork/guix-bioinformatics")
+       (branch "master")
+       (commit
+        "9939feb61ea29881d42628bc58a43886f7da6573"))
+      (channel
+       (name 'guix-forge)
+       (url "https://git.systemreboot.net/guix-forge/")
+       (branch "main")
+       (introduction
+        (make-channel-introduction
+         "0432e37b20dd678a02efee21adf0b9525a670310"
+         (openpgp-fingerprint
+          "7F73 0343 F2F0 9F3C 77BF  79D3 2E25 EE8B 6180 2BB3")))))
+#+end_src
+
+Activate a profile by:
+
+#+begin_src bash
+export GUIX_PROFILE=~/.guix-extra-profiles/genenetwork
+. $GUIX_PROFILE/etc/profile
+#+end_src
+
+Double-check to confirm that you are using the correct channel using =guix describe=.  The use of profiles is well documented [[https://issues.genenetwork.org/topics/guix-profiles][here]]---it should match your channels.scm file.
+
+** View Logs
+
+When troubleshooting our containers, all our log files are located in "/export2/guix-containers/genenetwork-development/var/log":
+
+#+begin_src sh
+tail /export2/guix-containers/genenetwork-development/var/log/cd/genenetwork2.log
+tail /export2/guix-containers/genenetwork-development/var/log/cd/genenetwork3.log
+#+end_src
+
+Note that to be able to view log files, you have to have root permissions.
+
+** Back-ups
+
+When running borg, you can run into the following error:
+
+#+begin_src text
+root@tux02:/export3/local/home/bonfacem# borg list /export3/backup/tux01/borg/borg-tux01/
+Cache, or information obtained from the security directory is newer than repository - this is either an attack or unsafe (multiple repos with same ID)
+#+end_src
+
+To fix it:
+
+: borg config repo id
+: rm ~/.config/borg/security/REPO_ID/manifest-timestamp
+: borg delete --cache-only REPO
