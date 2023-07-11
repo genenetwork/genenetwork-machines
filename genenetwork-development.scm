@@ -302,36 +302,35 @@ genenetwork3 source from the latest commit of @var{project}."
 <genenetwork-configuration> object."
   (match-record config <genenetwork-configuration>
     (gn2-repository gn3-repository gn2-port)
-    (list ;; (forge-project
-          ;;  (name "genenetwork2")
-          ;;  (repository gn2-repository)
-          ;;  (ci-jobs (list
-	  ;; 	     (forge-laminar-job
-          ;;             (name "genenetwork2")
-          ;;             (run (genenetwork2-tests
-          ;;                   config
-          ;;                   (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
-          ;;                         "-c" "-m" "pytest")))
-          ;;             ;; If unit tests pass, redeploy genenetwork2 and
-          ;;             ;; trigger Mechanical Rob.
-          ;;             (after (with-imported-modules '((guix build utils))
-	  ;; 					    #~(begin
-	  ;; 						(use-modules (guix build utils))
-	  ;; 						(when (string=? (getenv "RESULT") "success")
-	  ;; 						  (invoke #$sudo
-	  ;; 							  #$(file-append shepherd "/bin/herd")
-	  ;; 							  "restart" "genenetwork2")
-	  ;; 						  (invoke #$(file-append laminar "/bin/laminarc")
-	  ;; 							  "queue" "genenetwork2-mechanical-rob"))))))
-          ;;            (forge-laminar-job
-          ;;             (name "genenetwork2-mechanical-rob")
-          ;;             (run (genenetwork2-tests
-          ;;                   config
-          ;;                   (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
-          ;;                         "-c" "../test/requests/test-website.py"
-          ;;                         "--all" (string-append "http://localhost:" (number->string gn2-port)))))
-          ;;             (trigger? #f))))
-          ;;  (ci-jobs-trigger 'webhook))
+    (list (forge-project
+           (name "genenetwork2")
+           (repository gn2-repository)
+           (ci-jobs (list (forge-laminar-job
+                           (name "genenetwork2")
+                           (run (genenetwork2-tests
+                                 config
+                                 (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
+                                       "-c" "-m" "pytest")))
+                           ;; If unit tests pass, redeploy genenetwork2 and
+                           ;; trigger Mechanical Rob.
+                           (after (with-imported-modules '((guix build utils))
+                                    #~(begin
+                                        (use-modules (guix build utils))
+                                        (when (string=? (getenv "RESULT") "success")
+                                          (invoke #$sudo
+                                                  #$(file-append shepherd "/bin/herd")
+                                                  "restart" "genenetwork2")
+                                          (invoke #$(file-append laminar "/bin/laminarc")
+                                                  "queue" "genenetwork2-mechanical-rob"))))))
+                          (forge-laminar-job
+                           (name "genenetwork2-mechanical-rob")
+                           (run (genenetwork2-tests
+                                 config
+                                 (list "sh" "bin/genenetwork2" "./etc/default_settings.py"
+                                       "-c" "../test/requests/test-website.py"
+                                       "--all" (string-append "http://localhost:" (number->string gn2-port)))))
+                           (trigger? #f))))
+           (ci-jobs-trigger 'webhook))
           (forge-project
            (name "genenetwork3")
            (repository gn3-repository)
@@ -350,20 +349,20 @@ genenetwork3 source from the latest commit of @var{project}."
                                         (when (string=? (getenv "RESULT") "success")
                                           (invoke #$(file-append laminar "/bin/laminarc")
                                                   "queue" "genenetwork3-auth-migrations"))))))
-                          ;; (forge-laminar-job
-                          ;;  (name "genenetwork3-pylint")
-                          ;;  (run (derivation-job-gexp
-                          ;;        this-forge-project
-                          ;;        this-forge-laminar-job
-                          ;;        genenetwork3-pylint
-                          ;;        #:guix-daemon-uri %guix-daemon-uri)))
-                          ;; (forge-laminar-job
-                          ;;  (name "genenetwork3-mypy")
-                          ;;  (run (derivation-job-gexp
-                          ;;        this-forge-project
-                          ;;        this-forge-laminar-job
-                          ;;        genenetwork3-mypy
-                          ;;        #:guix-daemon-uri %guix-daemon-uri)))
+                          (forge-laminar-job
+                           (name "genenetwork3-pylint")
+                           (run (derivation-job-gexp
+                                 this-forge-project
+                                 this-forge-laminar-job
+                                 genenetwork3-pylint
+                                 #:guix-daemon-uri %guix-daemon-uri)))
+                          (forge-laminar-job
+                           (name "genenetwork3-mypy")
+                           (run (derivation-job-gexp
+                                 this-forge-project
+                                 this-forge-laminar-job
+                                 genenetwork3-mypy
+                                 #:guix-daemon-uri %guix-daemon-uri)))
                           (forge-laminar-job
 			   (name "genenetwork3-auth-migrations")
 			   (run (genenetwork3-auth-migrations-laminar config))
