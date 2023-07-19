@@ -356,10 +356,12 @@ genenetwork3 source from the latest commit of @var{project}."
            (repository gn3-repository)
            (ci-jobs (list (forge-laminar-job
                            (name "genenetwork3")
-                           (run (derivation-job-gexp
-                                 this-forge-project
-                                 this-forge-laminar-job
-                                 genenetwork3-unit-tests
+                           (run (guix-channel-job-gexp
+                                 (cons (channel
+                                        (name 'genenetwork3)
+                                        (url (forge-project-repository this-forge-project))
+                                        (branch "main"))
+                                       %default-channels)
                                  #:guix-daemon-uri %guix-daemon-uri))
                            ;; If unit tests pass, trigger the auth migrations.
                            (after (with-imported-modules '((guix build utils))
