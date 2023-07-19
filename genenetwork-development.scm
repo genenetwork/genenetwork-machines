@@ -140,6 +140,7 @@ be imported into G-expressions."
                                 (name 'gn-bioinformatics)
                                 (url "https://gitlab.com/genenetwork/guix-bioinformatics")
                                 (branch "master")))
+                         #:verbose? #false
                          #:guix-daemon-uri %guix-daemon-uri)))))
    (ci-jobs-trigger 'webhook)))
 
