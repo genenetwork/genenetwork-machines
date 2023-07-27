@@ -3,7 +3,7 @@ containers.
 
 * GeneNetwork development container
 
-The GeneNetwork development container is run on /tux02/. It runs
+The GeneNetwork development container is run on /penguin2/. It runs
 continuous integration and continuous deployment services for
 genenetwork2, genenetwork3 and several other associated projects.
 
@@ -14,7 +14,7 @@ pulled and available, on /penguin2/, run
 $ ./genenetwork-development-deploy.sh
 #+END_SRC
 
-/tux02/ is configured with a systemd service to run this
+/penguin2/ is configured with a systemd service to run this
 container. Restart it.
 #+BEGIN_SRC shell
 $ sudo systemctl restart genenetwork-development-container
@@ -22,17 +22,17 @@ $ sudo systemctl restart genenetwork-development-container
 
 * Virtuoso container for tux01 production
 
-The virtuoso container is run on /tux02/ production. It runs virtuoso
+The virtuoso container is run on /tux01/ production. It runs virtuoso
 alone.
 
 To build and install the container, you will need the
 guix-bioinformatics channel. Once guix-bioinformatics is pulled and
-available, on /tux02/, run
+available, on /tux01/, run
 #+begin_src shell
   $ ./virtuoso-deploy.sh
 #+end_src
 
-The container is configured with a systemd service to run this
+/tux01/ is configured with a systemd service to run this
 container. Restart it.
 #+begin_src shell
   $ sudo systemctl restart virtuoso-container
