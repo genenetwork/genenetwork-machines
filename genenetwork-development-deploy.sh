@@ -28,6 +28,7 @@ container_script=$(guix system container --network \
                         --verbosity=3 \
                         --load-path=. \
                         --share=/var/guix/daemon-socket=/var/host-guix/daemon-socket \
+                        --share=/export2/guix-containers/genenetwork-development/var/lib/acme=/var/lib/acme \
                         --share=/export2/guix-containers/genenetwork-development/var/lib/laminar=/var/lib/laminar \
                         --share=/export2/guix-containers/genenetwork-development/var/lib/tissue=/var/lib/tissue \
                         --share=/export2/guix-containers/genenetwork-development/var/lib/virtuoso=/var/lib/virtuoso \

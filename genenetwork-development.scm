@@ -49,7 +49,8 @@
              (gnu services databases)
              (gnu services mcron)
              (gnu services shepherd)
-             (gnu services web)
+             ((gnu services web) #:select (nginx-server-configuration
+                                           nginx-location-configuration))
              (gnu system file-systems)
              (guix build-system gnu)
              (guix channels)
@@ -62,8 +63,10 @@
              (guix records)
              (guix store)
              (guix utils)
+             (forge acme)
              (forge forge)
              (forge laminar)
+             (forge nginx)
              (forge socket)
              (forge tissue)
              (forge utils)
@@ -903,14 +906,12 @@ should be included in the channels.scm file."
                                           (string-append %profile-directory "/current-guix")))))
              port))))))
 
-(define (development-server-reverse-proxy-server-block listen gn2-port gn3-port)
-  "Return an <nginx-server-configuration> object listening on LISTEN to
-reverse proxy the GeneNetwork development server. GN2-PORT and
-GN3-PORT are the ports GeneNetwork2 and GeneNetwork3 are listening
-on."
+(define (development-server-reverse-proxy-server-block gn2-port gn3-port)
+  "Return an <nginx-server-configuration> object to reverse proxy the
+GeneNetwork development server. GN2-PORT and GN3-PORT are the ports
+GeneNetwork2 and GeneNetwork3 are listening on."
   (nginx-server-configuration
    (server-name '("cd.genenetwork.org"))
-   (listen (list listen))
    (locations
     (list (nginx-location-configuration
            ;; Reverse proxy genenetwork2.
@@ -934,15 +935,14 @@ on."
                           ";"))))))
    (raw-content (list "error_page 502 /error/502.html;"))))
 
-(define (laminar-reverse-proxy-server-block listen laminar-bind-http webhook-port published-channel-names)
+(define (laminar-reverse-proxy-server-block laminar-bind-http webhook-port published-channel-names)
   "Return an <nginx-server-configuration> object to reverse proxy
-laminar. The nginx server will listen on LISTEN and reverse proxy to
-laminar listening on LAMINAR-BIND-HTTP. WEBHOOK-PORT is the port the
-webhook server is listening on. PUBLISHED-CHANNEL-NAMES is a list of
-channel names for which a channels.scm should be published."
+laminar. The nginx server will reverse proxy to laminar listening on
+LAMINAR-BIND-HTTP. WEBHOOK-PORT is the port the webhook server is
+listening on. PUBLISHED-CHANNEL-NAMES is a list of channel names for
+which a channels.scm should be published."
   (nginx-server-configuration
    (server-name (list %ci-domain))
-   (listen (list listen))
    (locations
     (list (nginx-location-configuration
            (uri "/")
@@ -969,12 +969,11 @@ channel names for which a channels.scm should be published."
 ;; Port on which tissue is listening
 (define %tissue-port 9083)
 
-(define (tissue-reverse-proxy-server-block listen)
-  "Return an <nginx-server-configuration> object listening on LISTEN to
-reverse proxy tissue."
+(define (tissue-reverse-proxy-server-block)
+  "Return an <nginx-server-configuration> object to reverse proxy
+tissue."
   (nginx-server-configuration
    (server-name '("issues.genenetwork.org"))
-   (listen (list listen))
    (root "/var/lib/tissue/issues.genenetwork.org/website")
    (try-files (list "$uri" "$uri.html" "@tissue-search"))
    (locations
@@ -1017,7 +1016,8 @@ reverse proxy tissue."
                     "\nlaminar ALL = (genenetwork) NOPASSWD: "
                     (program-file "genenetwork3-auth-migrations"
                                   (genenetwork3-auth-migrations-genenetwork (genenetwork-configuration)))
-                    "\n"))
+                    ;; Permit the acme user to restart nginx.
+                    "\nacme ALL = NOPASSWD: " (file-append shepherd "/bin/herd") " restart nginx\n"))
   (services (cons* (service forge-service-type
                             (forge-configuration
                              (projects (list qc-project
@@ -1092,13 +1092,22 @@ reverse proxy tissue."
                                      (name "issues.genenetwork.org")
                                      (user "laminar")
                                      (upstream-repository "https://github.com/genenetwork/gn-gemtext-threads"))))))
-                   (service nginx-service-type
-                            (nginx-configuration
+                   (service forge-nginx-service-type
+                            (forge-nginx-configuration
+                             (http-listen (forge-ip-socket
+                                           (ip "0.0.0.0")
+                                           (port 9080)))
+                             (https-listen (forge-ip-socket
+                                            (ip "0.0.0.0")
+                                            (port 9090)))
                              (server-blocks
                               (list (development-server-reverse-proxy-server-block
-                                     "9090" %genenetwork2-port %genenetwork3-port)
+                                     %genenetwork2-port %genenetwork3-port)
                                     (laminar-reverse-proxy-server-block
-                                     "9090" "localhost:9089" %webhook-port
+                                     "localhost:9089" %webhook-port
                                      (list 'gn-bioinformatics))
-                                    (tissue-reverse-proxy-server-block "9090")))))
+                                    (tissue-reverse-proxy-server-block)))))
+                   (service acme-service-type
+                            (acme-configuration
+                             (email "arunisaac@systemreboot.net")))
                    %base-services)))
