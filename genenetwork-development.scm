@@ -64,6 +64,7 @@
              (guix store)
              (guix utils)
              (forge acme)
+             (forge cgit)
              (forge forge)
              (forge laminar)
              (forge nginx)
@@ -1024,6 +1025,10 @@ tissue."
                                              dump-genenetwork-database-project
                                              gn-gemtext-threads-project
                                              guix-bioinformatics-project))))
+                   (service cgit-service-type
+                            (cgit-configuration
+                             (server-name "git.genenetwork.org")
+                             (repository-directory "/home/git/public")))
                    (service laminar-service-type
                             (laminar-configuration
                              (title "GeneNetwork CI")
